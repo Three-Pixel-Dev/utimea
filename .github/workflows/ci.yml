@@ -47,11 +47,9 @@ jobs:
           cache: maven
 
       - name: Build with Maven
-        working-directory: ./utimea
         run: mvn clean package -DskipTests
 
       - name: Run tests
-        working-directory: ./utimea
         run: mvn test
         env:
           SPRING_DATABASE_URL: ${{ env.SPRING_DATABASE_URL }}
@@ -64,7 +62,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: utimea/target/surefire-reports
+          path: target/surefire-reports
           retention-days: 7
 
   build-docker:
@@ -89,7 +87,7 @@ jobs:
           cache: maven
 
       - name: Build with Maven
-        run: cd utimea && mvn clean package -DskipTests
+        run: mvn clean package -DskipTests
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -118,7 +116,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./utimea
+          context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
