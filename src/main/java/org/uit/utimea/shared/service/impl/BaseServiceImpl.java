@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.uit.utimea.shared.dto.request.PageAndFilterDTO;
 import org.uit.utimea.shared.dto.response.PaginationDTO;
 import org.uit.utimea.shared.repository.specification.GenericSpecification;
+import org.uit.utimea.shared.service.BaseService;
 import org.uit.utimea.shared.util.PaginationHelper;
 import org.uit.utimea.shared.repository.BaseRepository;
 
