@@ -23,17 +23,17 @@ public class Profile extends MasterEntity {
     private String phoneNumber;
 
     @Column(name = "degree")
-    private String degree;
+    private String degree; // for teacher
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id")
-    private CodeValue department;
+    private CodeValue department; // for teacher
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "batch_id")
-    private CodeValue batch;
+    private CodeValue batch; // for student
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "major_section_id")
-    private MajorSection majorSection;
+    private MajorSection majorSection; // student
 }

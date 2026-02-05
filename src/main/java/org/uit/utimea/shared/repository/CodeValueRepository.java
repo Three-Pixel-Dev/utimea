@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface CodeValueRepository extends BaseRepository<CodeValue> {
     Optional<CodeValue> findByCodeAndName(Code code, String name);
     List<CodeValue> findByCode(Code code);
+    long countByCode(Code code);
 }

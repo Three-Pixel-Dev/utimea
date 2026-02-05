@@ -8,5 +8,6 @@ public record CodeResponse(
         Long id,
         String name,
         String constantValue,
+        Long count,
         MasterData masterData
 ) {}

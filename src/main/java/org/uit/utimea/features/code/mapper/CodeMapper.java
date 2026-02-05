@@ -6,12 +6,14 @@ import org.uit.utimea.shared.mapper.MasterDataMapper;
 import org.uit.utimea.shared.entity.Code;
 import org.uit.utimea.features.code.dto.request.CodeRequest;
 import org.uit.utimea.features.code.dto.response.CodeResponse;
+import org.uit.utimea.shared.repository.CodeValueRepository;
 
 @Component
 @RequiredArgsConstructor
 public class CodeMapper {
 
     private final MasterDataMapper masterDataMapper;
+    private final CodeValueRepository codeValueRepository;
 
     public Code toEntity(CodeRequest request) {
         return Code.builder()
@@ -24,10 +26,15 @@ public class CodeMapper {
         if (entity == null) {
             return null;
         }
+        
+        // Count the number of CodeValues for this Code
+        Long count = codeValueRepository.countByCode(entity);
+        
         return CodeResponse.builder()
                 .id(entity.getId())
                 .name(entity.getName())
                 .constantValue(entity.getConstantValue())
+                .count(count)
                 .masterData(masterDataMapper.toMasterData(entity))
                 .build();
     }
