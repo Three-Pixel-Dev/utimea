@@ -11,8 +11,8 @@ public class MasterDataMapper {
 
     public MasterData toMasterData(MasterEntity entity) {
         return MasterData.builder()
-                .createdBy(entity.getUpdatedBy())
-                .updatedBy(entity.getUpdatedBy())
+                .createdBy(entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : 0L)
+                .updatedBy(entity.getUpdatedBy() != null ? entity.getUpdatedBy().getId() : 0L)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
