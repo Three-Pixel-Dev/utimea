@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Configuration for Excel processing with thread pool and batch size optimization
@@ -33,14 +34,11 @@ public class ExcelConfig {
      */
     @Bean(name = "excelThreadPool")
     public ExecutorService excelThreadPool() {
-        int availableProcessors = Runtime.getRuntime().availableProcessors();
-        
-        // Use configured values or calculate based on CPU cores
-        int coreSize = corePoolSize > 0 ? corePoolSize : availableProcessors;
-        int maxSize = maxPoolSize > 0 ? maxPoolSize : (availableProcessors * 2);
+        int coreSize = getOptimalPoolSize();
+        AtomicInteger threadCounter = new AtomicInteger(0);
         
         return Executors.newFixedThreadPool(coreSize, r -> {
-            Thread thread = new Thread(r, "excel-processor-" + System.currentTimeMillis());
+            Thread thread = new Thread(r, "excel-processor-" + threadCounter.incrementAndGet());
             thread.setDaemon(true);
             return thread;
         });
