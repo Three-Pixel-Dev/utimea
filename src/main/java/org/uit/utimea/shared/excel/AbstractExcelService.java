@@ -123,12 +123,17 @@ public abstract class AbstractExcelService<REQUEST, RESPONSE, EXCEL_DTO> impleme
                     return result;
                 }
 
+                int totalBatches = (int) Math.ceil((double) excelData.size() / batchSize);
+                log.info("Starting Excel import: {} rows, {} batches, batch size: {}", 
+                        excelData.size(), totalBatches, batchSize);
+                
                 List<CompletableFuture<BatchProcessResult>> batchFutures = new ArrayList<>();
                 
                 for (int i = 0; i < excelData.size(); i += batchSize) {
                     int start = i;
                     int end = Math.min(i + batchSize, excelData.size());
                     List<EXCEL_DTO> batch = excelData.subList(start, end);
+                    int batchNumber = (i / batchSize) + 1;
                     
                     CompletableFuture<BatchProcessResult> batchFuture = CompletableFuture.supplyAsync(() -> {
                         return processBatch(batch, start + 1);
@@ -176,6 +181,9 @@ public abstract class AbstractExcelService<REQUEST, RESPONSE, EXCEL_DTO> impleme
      * Processes a batch of Excel DTOs and returns the result
      */
     protected BatchProcessResult processBatch(List<EXCEL_DTO> batch, int startRowNumber) {
+        String threadName = Thread.currentThread().getName();
+        log.info("Processing batch starting at row {} on thread: {}", startRowNumber, threadName);
+        
         int successCount = 0;
         int failureCount = 0;
         List<ExcelValidationError> errors = new ArrayList<>();
@@ -194,9 +202,12 @@ public abstract class AbstractExcelService<REQUEST, RESPONSE, EXCEL_DTO> impleme
                         .rowNumber(rowNumber)
                         .message("Failed to create entity: " + e.getMessage())
                         .build());
-                log.error("Error processing row {}: {}", rowNumber, e.getMessage());
+                log.error("Error processing row {} on thread {}: {}", rowNumber, threadName, e.getMessage());
             }
         }
+        
+        log.info("Batch completed on thread {}: {} success, {} failures (rows {}-{})", 
+                threadName, successCount, failureCount, startRowNumber, startRowNumber + batch.size() - 1);
         
         return new BatchProcessResult(successCount, failureCount, errors);
     }
