@@ -56,6 +56,7 @@ public class TimetableInfoMapper {
                 .name(entity.getName())
                 .majorSection(majorSectionResponse)
                 .academicYear(academicYearResponse)
+                .masterData(masterDataMapper.toMasterData(entity))
                 .build();
     }
 

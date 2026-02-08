@@ -17,6 +17,7 @@ import org.uit.utimea.features.timetable.dto.request.TimetableInfoFilter;
 import org.uit.utimea.features.timetable.dto.request.TimetableInfoRequest;
 import org.uit.utimea.features.timetable.dto.response.TimetableResponse;
 import org.uit.utimea.features.timetable.dto.response.TimetableInfoResponse;
+import org.uit.utimea.features.timetable.dto.response.TimetableInfoWithTimetablesResponse;
 import org.uit.utimea.features.timetable.service.TimetableService;
 import org.uit.utimea.features.timetable.service.TimetableInfoService;
 
@@ -131,10 +132,10 @@ public class TimetableController {
 
     @GetMapping("/info/{id}")
     public ResponseEntity<ApiResponse> findInfoById(@PathVariable Long id, HttpServletRequest httpServletRequest) {
-        TimetableInfoResponse response = timetableInfoService.findById(id);
+        TimetableInfoWithTimetablesResponse response = timetableInfoService.findByIdWithTimetables(id);
         ApiResponse apiResponse = ApiResponseUtil.success(
                 response,
-                "TimetableInfo retrieved successfully",
+                "TimetableInfo with timetables retrieved successfully",
                 httpServletRequest
         );
         return ResponseEntity.ok(apiResponse);
