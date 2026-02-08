@@ -8,21 +8,22 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 @Entity
-@Table(name = "code_value")
+@Table(name = "timetable")
 @Getter
 @Setter
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CodeValue extends MasterEntity {
+public class Timetable extends MasterEntity {
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name")
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "code_id", nullable = false)
-    private Code code;
+    @JoinColumn(name = "timetable_info_id", nullable = false)
+    private TimetableInfo timetableInfo;
 
-    @Column(name = "system_defined", nullable = false)
-    private Boolean systemDefined = true;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "timetable_data_id", nullable = false)
+    private TimetableData timetableData;
 }

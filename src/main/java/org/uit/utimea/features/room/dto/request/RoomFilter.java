@@ -9,5 +9,5 @@ import org.uit.utimea.shared.dto.request.BaseFilter;
 public class RoomFilter extends BaseFilter {
     private String name;
     private Integer capacity;
-    private Integer type;
+    private Long roomTypeId;
 }

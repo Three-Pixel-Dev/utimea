@@ -8,6 +8,6 @@ public record RoomResponse(
         Long id,
         String name,
         Integer capacity,
-        Integer type,
+        CodeValueResponse roomType,
         MasterData masterData
 ) {}

@@ -31,8 +31,28 @@ public class GenericSpecification<T> {
                 if (parts.length == 1) {
                     path = root.get(parts[0]);
                 } else {
-                    Join<?, ?> join = joins.computeIfAbsent(parts[0], j -> root.join(j, JoinType.LEFT));
-                    path = join.get(parts[1]);
+                    // Handle multiple levels of nesting
+                    Join<?, ?> currentJoin = null;
+                    
+                    for (int i = 0; i < parts.length - 1; i++) {
+                        String joinKey = String.join(".", java.util.Arrays.copyOf(parts, i + 1));
+                        
+                        if (i == 0) {
+                            // First level join from root
+                            currentJoin = joins.computeIfAbsent(joinKey, j -> root.join(parts[0], JoinType.LEFT));
+                        } else {
+                            // Nested joins - get parent join
+                            String parentJoinKey = String.join(".", java.util.Arrays.copyOf(parts, i));
+                            Join<?, ?> parentJoin = joins.get(parentJoinKey);
+                            if (parentJoin == null) {
+                                throw new IllegalStateException("Parent join not found for: " + parentJoinKey);
+                            }
+                            int finalI = i;
+                            currentJoin = joins.computeIfAbsent(joinKey, j -> parentJoin.join(parts[finalI], JoinType.LEFT));
+                        }
+                    }
+                    
+                    path = currentJoin.get(parts[parts.length - 1]);
                 }
 
                 if (value instanceof String stringValue) {

@@ -91,9 +91,13 @@ public abstract class BaseServiceImpl<ENTITY, REQUEST, RESPONSE, FILTER> impleme
     }
 
     private Pageable buildPageable(PageAndFilterDTO<FILTER> pageAndFilterDTO) {
-        Sort sort = pageAndFilterDTO.getSortBy() != null && !pageAndFilterDTO.getSortBy().isEmpty()
-                ? Sort.by(Sort.Direction.fromString(pageAndFilterDTO.getSortDirection()), pageAndFilterDTO.getSortBy())
-                : Sort.unsorted();
+        String sortBy = pageAndFilterDTO.getSortBy() != null && !pageAndFilterDTO.getSortBy().isEmpty()
+                ? pageAndFilterDTO.getSortBy()
+                : "id";
+        String sortDirection = pageAndFilterDTO.getSortDirection() != null && !pageAndFilterDTO.getSortDirection().isEmpty()
+                ? pageAndFilterDTO.getSortDirection()
+                : "ASC";
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
         return PageRequest.of(pageAndFilterDTO.getPage(), pageAndFilterDTO.getSize(), sort);
     }
 
