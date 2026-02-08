@@ -239,7 +239,6 @@ public class TimetableGenerationService {
             Timetable timetable = new Timetable();
             timetable.setTimetableInfo(info);
             timetable.setTimetableData(data);
-            timetable.setName(result.getSubject().getName() + " " + result.getTypeTag());
             timetableRepo.save(timetable);
         }
     }

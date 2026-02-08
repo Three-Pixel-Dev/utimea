@@ -19,6 +19,9 @@ import java.util.List;
 @AllArgsConstructor
 public class TimetableInfo extends MasterEntity {
 
+    @Column(name = "name")
+    private String name;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "major_section_id", nullable = false)
     private MajorSection majorSection;

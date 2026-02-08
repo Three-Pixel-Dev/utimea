@@ -13,8 +13,12 @@ import org.uit.utimea.shared.dto.response.ApiResponse;
 import org.uit.utimea.shared.util.ApiResponseUtil;
 import org.uit.utimea.features.timetable.dto.request.TimetableFilter;
 import org.uit.utimea.features.timetable.dto.request.TimetableRequest;
+import org.uit.utimea.features.timetable.dto.request.TimetableInfoFilter;
+import org.uit.utimea.features.timetable.dto.request.TimetableInfoRequest;
 import org.uit.utimea.features.timetable.dto.response.TimetableResponse;
+import org.uit.utimea.features.timetable.dto.response.TimetableInfoResponse;
 import org.uit.utimea.features.timetable.service.TimetableService;
+import org.uit.utimea.features.timetable.service.TimetableInfoService;
 
 import java.util.List;
 
@@ -24,6 +28,7 @@ import java.util.List;
 public class TimetableController {
 
     private final TimetableService timetableService;
+    private final TimetableInfoService timetableInfoService;
     private final TimetableGenerationService generationService;
     @PostMapping
     public ResponseEntity<ApiResponse> create(@RequestBody TimetableRequest request, HttpServletRequest httpServletRequest) {
@@ -97,4 +102,62 @@ public class TimetableController {
 //        List<TimetableResponseDto> timetable = generationService.getTimetableBySection(majorSectionId);
 //        return ResponseEntity.ok(timetable);
 //    }
+
+    // TimetableInfo endpoints
+    @PostMapping("/info")
+    public ResponseEntity<ApiResponse> createInfo(@RequestBody TimetableInfoRequest request, HttpServletRequest httpServletRequest) {
+        TimetableInfoResponse response = timetableInfoService.create(request);
+        ApiResponse apiResponse = ApiResponseUtil.created(
+                response,
+                "TimetableInfo created successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
+    }
+
+    @PostMapping("/info/pageable")
+    public ResponseEntity<ApiResponse> getAllInfo(@RequestBody(required = false) PageAndFilterDTO<TimetableInfoFilter> pageAndFilterDTO, HttpServletRequest httpServletRequest) {
+        if (pageAndFilterDTO == null) {
+            pageAndFilterDTO = new PageAndFilterDTO<>();
+        }
+        var pagination = timetableInfoService.getAll(pageAndFilterDTO);
+        ApiResponse apiResponse = ApiResponseUtil.paginated(
+                pagination,
+                "TimetableInfos retrieved successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @GetMapping("/info/{id}")
+    public ResponseEntity<ApiResponse> findInfoById(@PathVariable Long id, HttpServletRequest httpServletRequest) {
+        TimetableInfoResponse response = timetableInfoService.findById(id);
+        ApiResponse apiResponse = ApiResponseUtil.success(
+                response,
+                "TimetableInfo retrieved successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @PutMapping("/info/{id}")
+    public ResponseEntity<ApiResponse> updateInfo(@PathVariable Long id, @RequestBody TimetableInfoRequest request, HttpServletRequest httpServletRequest) {
+        TimetableInfoResponse response = timetableInfoService.update(id, request);
+        ApiResponse apiResponse = ApiResponseUtil.success(
+                response,
+                "TimetableInfo updated successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @DeleteMapping("/info/{id}")
+    public ResponseEntity<ApiResponse> deleteInfo(@PathVariable Long id, HttpServletRequest httpServletRequest) {
+        timetableInfoService.delete(id);
+        ApiResponse apiResponse = ApiResponseUtil.noContent(
+                "TimetableInfo deleted successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apiResponse);
+    }
 }

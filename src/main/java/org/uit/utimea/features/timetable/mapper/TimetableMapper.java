@@ -36,10 +36,7 @@ public class TimetableMapper {
                 request.roomId()
         );
 
-        String name = TimetableUtil.generateTimetableName(timetableInfo);
-
         return Timetable.builder()
-                .name(name)
                 .timetableInfo(timetableInfo)
                 .timetableData(timetableData)
                 .build();
@@ -55,7 +52,7 @@ public class TimetableMapper {
 
         return TimetableResponse.builder()
                 .id(entity.getId())
-                .name(entity.getName())
+                .name(entity.getTimetableInfo() != null ? entity.getTimetableInfo().getName() : null)
                 .timetableInfo(timetableInfoResponse)
                 .timetableData(timetableDataResponse)
                 .masterData(masterDataMapper.toMasterData(entity))
@@ -77,7 +74,6 @@ public class TimetableMapper {
 
         entity.setTimetableInfo(timetableInfo);
         entity.setTimetableData(timetableData);
-        entity.setName(TimetableUtil.generateTimetableName(timetableInfo));
     }
 
     private TimetableInfo findOrCreateTimetableInfo(Long majorSectionId, Long academicYearId) {
@@ -93,13 +89,23 @@ public class TimetableMapper {
                 .toList();
 
         if (!existing.isEmpty()) {
-            return existing.get(0);
+            TimetableInfo existingInfo = existing.get(0);
+            // Ensure name is set for existing records
+            if (existingInfo.getName() == null || existingInfo.getName().isEmpty()) {
+                String name = TimetableUtil.generateTimetableName(existingInfo);
+                existingInfo.setName(name);
+                return timetableInfoRepository.save(existingInfo);
+            }
+            return existingInfo;
         }
 
         TimetableInfo newInfo = TimetableInfo.builder()
                 .majorSection(majorSection)
                 .academicYear(academicYear)
                 .build();
+        
+        String name = TimetableUtil.generateTimetableName(newInfo);
+        newInfo.setName(name);
 
         return timetableInfoRepository.save(newInfo);
     }
@@ -156,6 +162,7 @@ public class TimetableMapper {
 
         return TimetableInfoResponse.builder()
                 .id(info.getId())
+                .name(info.getName())
                 .majorSection(majorSectionResponse)
                 .academicYear(academicYearResponse)
                 .build();
