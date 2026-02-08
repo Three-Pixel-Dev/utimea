@@ -5,6 +5,7 @@ import lombok.Builder;
 @Builder
 public record TimetableInfoResponse(
         Long id,
+        String name,
         MajorSectionResponse majorSection,
         CodeValueResponse academicYear
 ) {}

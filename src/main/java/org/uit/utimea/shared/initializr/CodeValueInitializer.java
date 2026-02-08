@@ -1,11 +1,13 @@
 package org.uit.utimea.shared.initializr;
 
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.uit.utimea.shared.entity.Code;
 import org.uit.utimea.shared.entity.CodeValue;
 import org.uit.utimea.shared.repository.CodeRepository;
@@ -19,8 +21,10 @@ public class CodeValueInitializer implements CommandLineRunner {
 
     private final CodeRepository codeRepository;
     private final CodeValueRepository codeValueRepository;
+    private final EntityManager entityManager;
 
     @Override
+    @Transactional
     public void run(String... args) {
         initializeCodeValue("Department-01", "DEPARTMENT");
         initializeCodeValue("Department-02", "DEPARTMENT");
@@ -85,14 +89,24 @@ public class CodeValueInitializer implements CommandLineRunner {
         Code code = codeRepository.findByConstantValue(codeConstantValue)
                 .orElseThrow(() -> new EntityNotFoundException("Code with constantValue " + codeConstantValue + " not found."));
 
+        if (code.getId() == null) {
+            entityManager.persist(code);
+            entityManager.flush();
+        } else {
+            code = entityManager.merge(code);
+        }
+
+        Code finalCode = code;
         codeValueRepository.findByCodeAndName(code, codeValue).orElseGet(() -> {
             CodeValue codeValueEntity = CodeValue.builder()
-                    .code(code)
+                    .code(finalCode)
                     .name(codeValue)
                     .systemDefined(true)
                     .build();
-            log.info("Initializing code value: {} for code: {} (constantValue: {})", codeValue, code.getName(), codeConstantValue);
-            return codeValueRepository.save(codeValueEntity);
+            log.info("Initializing code value: {} for code: {} (constantValue: {})", codeValue, finalCode.getName(), codeConstantValue);
+            CodeValue saved = codeValueRepository.save(codeValueEntity);
+            entityManager.flush();
+            return saved;
         });
     }
 }
