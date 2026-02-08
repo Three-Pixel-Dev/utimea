@@ -2,6 +2,10 @@ package org.uit.utimea.features.teacher.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddressList;
+import org.apache.poi.xssf.usermodel.XSSFDataValidationHelper;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.uit.utimea.features.teacher.dto.excel.TeacherExcelDTO;
 import org.uit.utimea.features.teacher.dto.request.TeacherFilter;
@@ -13,12 +17,18 @@ import org.uit.utimea.shared.dto.request.PageAndFilterDTO;
 import org.uit.utimea.shared.excel.AbstractExcelService;
 import org.uit.utimea.shared.excel.ExcelValidationError;
 import org.uit.utimea.shared.repository.CodeValueRepository;
+import org.uit.utimea.shared.repository.CodeRepository;
 import org.uit.utimea.shared.entity.CodeValue;
+import org.uit.utimea.shared.entity.Code;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 /**
  * Excel service implementation for Teachers.
@@ -30,17 +40,20 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
 
     private final TeacherService teacherService;
     private final CodeValueRepository codeValueRepository;
+    private final CodeRepository codeRepository;
     private final TeacherMapper teacherMapper;
 
     public TeacherExcelService(
             TeacherService teacherService,
             CodeValueRepository codeValueRepository,
+            CodeRepository codeRepository,
             TeacherMapper teacherMapper,
             @org.springframework.beans.factory.annotation.Qualifier("excelThreadPool") ExecutorService excelThreadPool,
             ExcelConfig excelConfig) {
         super(excelThreadPool, excelConfig.excelBatchSize());
         this.teacherService = teacherService;
         this.codeValueRepository = codeValueRepository;
+        this.codeRepository = codeRepository;
         this.teacherMapper = teacherMapper;
     }
 
@@ -57,6 +70,79 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
     @Override
     protected String getSheetName() {
         return "Teachers";
+    }
+
+    @Override
+    public InputStream generateTemplate() {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet(getSheetName());
+
+            Row headerRow = sheet.createRow(0);
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            List<String> headers = getColumnHeaders();
+            List<Integer> widths = getColumnWidths();
+            
+            for (int i = 0; i < headers.size(); i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers.get(i));
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, widths.get(i) * 256);
+            }
+
+            addDepartmentDropdownValidation((XSSFSheet) sheet);
+
+            sheet.createFreezePane(0, 1);
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return new ByteArrayInputStream(outputStream.toByteArray());
+            
+        } catch (IOException e) {
+            log.error("Error generating Excel template", e);
+            throw new RuntimeException("Failed to generate Excel template", e);
+        }
+    }
+
+    private void addDepartmentDropdownValidation(XSSFSheet sheet) {
+        addDepartmentDropdownValidation(sheet, 1, 10000);
+    }
+
+    private void addDepartmentDropdownValidation(XSSFSheet sheet, int firstRow, int lastRow) {
+        try {
+            Code departmentCode = codeRepository.findByConstantValue("DEPARTMENT")
+                    .orElseThrow(() -> new RuntimeException("DEPARTMENT code not found"));
+            
+            List<CodeValue> departments = codeValueRepository.findByCode(departmentCode);
+            List<String> departmentNames = departments.stream()
+                    .sorted((d1, d2) -> Long.compare(d1.getId(), d2.getId()))
+                    .map(CodeValue::getName)
+                    .collect(Collectors.toList());
+            
+            if (departmentNames.isEmpty()) {
+                log.warn("No department code values found for dropdown validation");
+                return;
+            }
+            
+            XSSFDataValidationHelper validationHelper = new XSSFDataValidationHelper(sheet);
+            DataValidationConstraint constraint = validationHelper.createExplicitListConstraint(
+                    departmentNames.toArray(new String[0])
+            );
+            
+            CellRangeAddressList addressList = new CellRangeAddressList(firstRow, lastRow, 3, 3);
+            DataValidation validation = validationHelper.createValidation(constraint, addressList);
+            
+            validation.setShowErrorBox(true);
+            validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+            validation.createErrorBox("Invalid Department", "Please select a valid department from the dropdown list.");
+            validation.setShowPromptBox(true);
+            validation.createPromptBox("Department", "Please select a department from the dropdown list.");
+            
+            sheet.addValidationData(validation);
+            log.info("Added department dropdown validation with {} options for rows {}-{}", 
+                    departmentNames.size(), firstRow + 1, lastRow + 1);
+        } catch (Exception e) {
+            log.error("Error adding department dropdown validation", e);
+        }
     }
 
     @Override
@@ -112,6 +198,11 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
             createCell(row, 2, teacher.getDegree(), dataStyle);
             createCell(row, 3, teacher.getDepartmentName(), dataStyle);
         }
+        
+        if (sheet instanceof XSSFSheet) {
+            int lastDataRow = rowNum > 1 ? rowNum - 1 : 1;
+            addDepartmentDropdownValidation((XSSFSheet) sheet, 1, Math.max(lastDataRow, 1000));
+        }
     }
 
     @Override
@@ -145,17 +236,26 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
             }
 
             if (teacher.getDepartmentName() != null && !teacher.getDepartmentName().trim().isEmpty()) {
-                CodeValue department = codeValueRepository.findByName(teacher.getDepartmentName())
-                        .stream()
-                        .findFirst()
+                Code departmentCode = codeRepository.findByConstantValue("DEPARTMENT")
                         .orElse(null);
-                if (department == null) {
+                if (departmentCode == null) {
                     errors.add(ExcelValidationError.builder()
                             .rowNumber(rowNumber)
                             .column("Department Name")
-                            .message("Department '" + teacher.getDepartmentName() + "' not found")
+                            .message("DEPARTMENT code not found in system")
                             .invalidValue(teacher.getDepartmentName())
                             .build());
+                } else {
+                    CodeValue department = codeValueRepository.findByCodeAndName(departmentCode, teacher.getDepartmentName())
+                            .orElse(null);
+                    if (department == null) {
+                        errors.add(ExcelValidationError.builder()
+                                .rowNumber(rowNumber)
+                                .column("Department Name")
+                                .message("Department '" + teacher.getDepartmentName() + "' not found. Please select from the dropdown list.")
+                                .invalidValue(teacher.getDepartmentName())
+                                .build());
+                    }
                 }
             }
         }
@@ -168,11 +268,13 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
         Long departmentId = null;
         
         if (excelDto.getDepartmentName() != null && !excelDto.getDepartmentName().trim().isEmpty()) {
-            departmentId = codeValueRepository.findByName(excelDto.getDepartmentName())
-                    .stream()
-                    .findFirst()
-                    .map(CodeValue::getId)
+            Code departmentCode = codeRepository.findByConstantValue("DEPARTMENT")
                     .orElse(null);
+            if (departmentCode != null) {
+                departmentId = codeValueRepository.findByCodeAndName(departmentCode, excelDto.getDepartmentName())
+                        .map(CodeValue::getId)
+                        .orElse(null);
+            }
         }
         
         return new TeacherRequest(
@@ -193,7 +295,6 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
                 .build();
     }
 
-    // Helper methods
     private String getCellValueAsString(Cell cell) {
         if (cell == null) return null;
         
