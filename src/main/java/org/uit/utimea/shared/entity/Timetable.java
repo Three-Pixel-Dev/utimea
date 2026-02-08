@@ -16,6 +16,9 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public class Timetable extends MasterEntity {
 
+    @Column(name = "name")
+    private String name;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "timetable_info_id", nullable = false)
     private TimetableInfo timetableInfo;
