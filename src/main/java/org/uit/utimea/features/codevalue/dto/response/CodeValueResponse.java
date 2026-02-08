@@ -10,5 +10,6 @@ public record CodeValueResponse(
         String codeName,
         String codeValue,
         String description,
+        Boolean systemDefined,
         MasterData masterData
 ) {}

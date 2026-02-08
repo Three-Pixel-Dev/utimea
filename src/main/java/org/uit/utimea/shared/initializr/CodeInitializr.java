@@ -22,6 +22,10 @@ public class CodeInitializr implements CommandLineRunner {
         initializeCode("Batch", "BATCH");
         initializeCode("Academic Year", "ACADEMIC_YEAR");
         initializeCode("Major Section Year", "MAJOR_SECTION_YEAR");
+        initializeCode("Timetable Days", "TIMETABLE_DAYS");
+        initializeCode("Timetable Periods", "TIMETABLE_PERIODS");
+        initializeCode("Subject Type", "SUBJECT_TYPE");
+        initializeCode("Room Type", "ROOM_TYPE");
     }
 
     private void initializeCode(String name, String constantValue) {

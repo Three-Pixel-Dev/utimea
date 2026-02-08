@@ -24,6 +24,7 @@ public class CodeValueMapper {
         return CodeValue.builder()
                 .code(code)
                 .name(request.name())
+                .systemDefined(request.systemDefined() != null ? request.systemDefined() : true)
                 .build();
     }
 
@@ -36,6 +37,7 @@ public class CodeValueMapper {
                 .codeId(entity.getCode() != null ? entity.getCode().getId() : null)
                 .codeName(entity.getCode() != null ? entity.getCode().getName() : null)
                 .codeValue(entity.getName())
+                .systemDefined(entity.getSystemDefined() != null ? entity.getSystemDefined() : true)
                 .masterData(masterDataMapper.toMasterData(entity))
                 .build();
     }
@@ -47,5 +49,8 @@ public class CodeValueMapper {
             entity.setCode(code);
         }
         entity.setName(request.name());
+        if (request.systemDefined() != null) {
+            entity.setSystemDefined(request.systemDefined());
+        }
     }
 }

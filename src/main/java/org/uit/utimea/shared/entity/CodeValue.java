@@ -22,4 +22,7 @@ public class CodeValue extends MasterEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "code_id", nullable = false)
     private Code code;
+
+    @Column(name = "system_defined", nullable = false)
+    private Boolean systemDefined = true;
 }

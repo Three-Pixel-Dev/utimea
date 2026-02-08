@@ -58,6 +58,27 @@ public class CodeValueInitializer implements CommandLineRunner {
         initializeCodeValue("First Year, Section - C", "MAJOR_SECTION_YEAR");
         initializeCodeValue("First Year, Section - D", "MAJOR_SECTION_YEAR");
         initializeCodeValue("First Year, Section - E", "MAJOR_SECTION_YEAR");
+
+        initializeCodeValue("Monday", "TIMETABLE_DAYS");
+        initializeCodeValue("Tuesday", "TIMETABLE_DAYS");
+        initializeCodeValue("Wednesday", "TIMETABLE_DAYS");
+        initializeCodeValue("Thursday", "TIMETABLE_DAYS");
+        initializeCodeValue("Friday", "TIMETABLE_DAYS");
+
+        initializeCodeValue("8:30 - 9:30", "TIMETABLE_PERIODS");
+        initializeCodeValue("9:40 - 10:40", "TIMETABLE_PERIODS");
+        initializeCodeValue("10:50 - 11:50", "TIMETABLE_PERIODS");
+        initializeCodeValue("11:50 - 12:40", "TIMETABLE_PERIODS");
+        initializeCodeValue("12:40 - 1:40", "TIMETABLE_PERIODS");
+        initializeCodeValue("1:50 - 2:50", "TIMETABLE_PERIODS");
+        initializeCodeValue("3:00 - 4:00", "TIMETABLE_PERIODS");
+
+        initializeCodeValue("L", "SUBJECT_TYPE");
+        initializeCodeValue("TDA", "SUBJECT_TYPE");
+        initializeCodeValue("Lab", "SUBJECT_TYPE");
+
+        initializeCodeValue("Lecture", "ROOM_TYPE");
+        initializeCodeValue("PC", "ROOM_TYPE");
     }
 
     private void initializeCodeValue(String codeValue, String codeConstantValue) {
@@ -68,6 +89,7 @@ public class CodeValueInitializer implements CommandLineRunner {
             CodeValue codeValueEntity = CodeValue.builder()
                     .code(code)
                     .name(codeValue)
+                    .systemDefined(true)
                     .build();
             log.info("Initializing code value: {} for code: {} (constantValue: {})", codeValue, code.getName(), codeConstantValue);
             return codeValueRepository.save(codeValueEntity);

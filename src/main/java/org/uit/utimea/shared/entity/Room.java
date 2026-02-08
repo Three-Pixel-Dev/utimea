@@ -22,6 +22,7 @@ public class Room extends MasterEntity {
     @Column(name = "capacity")
     private Integer capacity;
 
-    @Column(name = "type")
-    private Integer type;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "room_type_id")
+    private CodeValue roomType;
 }
