@@ -16,7 +16,6 @@ import java.util.Map;
 public class TimetableServiceImpl extends BaseServiceImpl<Timetable, TimetableRequest, TimetableResponse, TimetableFilter> implements TimetableService {
 
     private final TimetableMapper timetableMapper;
-
     public TimetableServiceImpl(TimetableRepository timetableRepository, TimetableMapper timetableMapper) {
         super(timetableRepository);
         this.timetableMapper = timetableMapper;

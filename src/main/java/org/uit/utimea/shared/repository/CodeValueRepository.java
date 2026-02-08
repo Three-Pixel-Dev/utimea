@@ -13,4 +13,7 @@ public interface CodeValueRepository extends BaseRepository<CodeValue> {
     List<CodeValue> findByCode(Code code);
     List<CodeValue> findByName(String name);
     long countByCode(Code code);
+
+    Optional<CodeValue> findByNameAndCode_Name(String name, String codeName);
+    List<CodeValue> findByCode_Name(String codeName); // e.g., Find all "DAY" or "PERIOD"
 }
