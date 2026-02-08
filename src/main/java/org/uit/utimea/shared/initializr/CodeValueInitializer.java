@@ -53,11 +53,11 @@ public class CodeValueInitializer implements CommandLineRunner {
         initializeCodeValue("2025-2026 Academic Year, Semester – (XI)", "ACADEMIC_YEAR");
         initializeCodeValue("2025-2026 Academic Year, Semester – (XII)", "ACADEMIC_YEAR");
 
-        initializeCodeValue("First Year, Section - A", "MAJOR_SECTION_YEAR");
-        initializeCodeValue("First Year, Section - B", "MAJOR_SECTION_YEAR");
-        initializeCodeValue("First Year, Section - C", "MAJOR_SECTION_YEAR");
-        initializeCodeValue("First Year, Section - D", "MAJOR_SECTION_YEAR");
-        initializeCodeValue("First Year, Section - E", "MAJOR_SECTION_YEAR");
+        initializeCodeValue("First Year", "MAJOR_SECTION_YEAR");
+        initializeCodeValue("Second Year", "MAJOR_SECTION_YEAR");
+        initializeCodeValue("Third Year", "MAJOR_SECTION_YEAR");
+        initializeCodeValue("Fourth Year", "MAJOR_SECTION_YEAR");
+        initializeCodeValue("Fifth Year", "MAJOR_SECTION_YEAR");
 
         initializeCodeValue("Monday", "TIMETABLE_DAYS");
         initializeCodeValue("Tuesday", "TIMETABLE_DAYS");
