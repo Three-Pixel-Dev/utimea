@@ -92,7 +92,7 @@ public class TimetableController {
     public ResponseEntity<String> generateTimetable(@RequestBody TimetableGenerationRequest request) {
         try {
             generationService.generateTimetable(request);
-            return ResponseEntity.ok("Timetable generated successfully for Section ID: " + request.getMajorSectionId());
+            return ResponseEntity.ok("Timetable generated successfully for Section ID: " + request.getNumberOfStudentsInFirstYear());
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("Generation Failed: " + e.getMessage());
         }
