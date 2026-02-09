@@ -15,7 +15,6 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Room extends MasterEntity {
-
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -25,4 +24,7 @@ public class Room extends MasterEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_type_id")
     private CodeValue roomType;
+
+    @Column(name="is_special_room")
+    private Boolean isSpecialRoom = false;
 }

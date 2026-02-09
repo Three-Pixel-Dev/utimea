@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
+import org.uit.utimea.shared.data.SubjectYear;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +34,21 @@ public class Subject extends MasterEntity {
     )
     private List<CodeValue> subjectTypes = new ArrayList<>();
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "room_type_id")
     private CodeValue roomType;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "teacher_id")
+    private Profile teacher;
+
+    @Column(name = "special_room_count")
+    private Integer specialRoomCount;
+
+    @Column(name="is_first_sem")
+    private Boolean isFirstSem;
+
+    @Column(name = "subject_year")
+    @Enumerated(EnumType.STRING)
+    private SubjectYear subjectYear;
 }
