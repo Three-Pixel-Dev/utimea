@@ -11,13 +11,12 @@ import org.uit.utimea.shared.data.SubjectYear;
 import java.util.ArrayList;
 import java.util.List;
 
-@Entity
-@Table(name = "subject")
 @Getter
 @Setter
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
+@Entity
 public class Subject extends MasterEntity {
 
     @Column(name = "code", nullable = false)
@@ -38,9 +37,13 @@ public class Subject extends MasterEntity {
     @JoinColumn(name = "room_type_id")
     private CodeValue roomType;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "teacher_id")
-    private Profile teacher;
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "subject_teacher_mapping",
+            joinColumns = @JoinColumn(name = "subject_id"),
+            inverseJoinColumns = @JoinColumn(name = "teacher_id")
+    )
+    private List<Profile> teachers = new ArrayList<>();
 
     @Column(name = "special_room_count")
     private Integer specialRoomCount;
