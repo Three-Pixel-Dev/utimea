@@ -35,6 +35,10 @@ public class TimetableData extends MasterEntity {
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "teacher_id", nullable = false)
+    private Profile teacher;
+
     @OneToMany(mappedBy = "timetableData", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Timetable> timetables = new ArrayList<>();
 }
