@@ -214,13 +214,23 @@ public class TimetableMapper {
                 .name(data.getRoom().getName())
                 .capacity(data.getRoom().getCapacity())
                 .build();
-
+        TeacherResponse teachersSpecificResponse = null;
+        if (data.getTeacher() != null) {
+            teachersSpecificResponse =  TeacherResponse.builder()
+                            .id(data.getTeacher().getId())
+                            .name(data.getTeacher().getName())
+                            .phoneNumber(data.getTeacher().getPhoneNumber())
+                            .degree(data.getTeacher().getDegree())
+                            .build();
+        }
         return TimetableDataResponse.builder()
                 .id(data.getId())
                 .timetableDay(dayResponse)
                 .timetablePeriod(periodResponse)
                 .subject(subjectResponse)
                 .room(roomResponse)
+                .teacher(teachersSpecificResponse)
+                .subjectType(data.getSubType())
                 .build();
     }
 }

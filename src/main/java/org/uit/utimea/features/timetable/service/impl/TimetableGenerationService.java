@@ -236,7 +236,7 @@ public class TimetableGenerationService {
 
         Map<String, ScheduledSlot[]> majorTimetables = new HashMap<>();
         for (String major : majorCounts.keySet()) {
-            majorTimetables.put(major, new ScheduledSlot[30]);
+            majorTimetables.put(major, new ScheduledSlot[35]); // Scaled to 35 slots
         }
 
         // Shuffle subjects for randomness
@@ -282,27 +282,27 @@ public class TimetableGenerationService {
             int teacherIndex = 0;
 
             for (List<String> sectionMajors : sections) {
-                // Here, we ALREADY assign exactly one teacher for all 4 slots for this specific section/group!
                 AlgoTeacher assignedTeacher = subjectTeachers.get(teacherIndex % subjectTeachers.size());
                 teacherIndex++;
 
                 int slotsRequired = 4;
                 int slotsBooked = 0;
 
-                // TRACKERS FOR THE NEW RULES
                 int morningBooked = 0;
                 int eveningBooked = 0;
                 int specialRoomsBooked = 0;
 
                 List<Integer> slotOrder = new ArrayList<>();
-                for(int k=0; k<30; k++) slotOrder.add(k);
+                for(int k=0; k<35; k++) {
+                    if (k % 7 != 3) slotOrder.add(k); // CRITICAL: Never attempt to schedule in the lunch slot (index 3)
+                }
                 Collections.shuffle(slotOrder);
 
                 for (int slot : slotOrder) {
                     if (slotsBooked >= slotsRequired) break;
 
                     // STRICT RULE: Max 2 Morning Slots, Max 2 Evening Slots
-                    boolean isMorning = (slot % 6) < 3;
+                    boolean isMorning = (slot % 7) < 3;
                     if (isMorning && morningBooked >= 2) continue;
                     if (!isMorning && eveningBooked >= 2) continue;
 
@@ -393,9 +393,9 @@ public class TimetableGenerationService {
 
     private boolean isMajorDailyLimitExceeded(Map<String, ScheduledSlot[]> majorTimetables, String major, int slot, Long subjectId) {
         ScheduledSlot[] schedule = majorTimetables.get(major);
-        int dayStart = (slot / 6) * 6;
+        int dayStart = (slot / 7) * 7;
         int count = 0;
-        for (int k = dayStart; k < dayStart + 6; k++) {
+        for (int k = dayStart; k < dayStart + 7; k++) {
             if (schedule[k] != null && schedule[k].getSubject().getDbId().equals(subjectId)) {
                 count++;
             }
@@ -405,9 +405,9 @@ public class TimetableGenerationService {
 
     private boolean isMajorDailyHeavyLimitExceeded(Map<String, ScheduledSlot[]> majorTimetables, String major, int slot) {
         ScheduledSlot[] schedule = majorTimetables.get(major);
-        int dayStart = (slot / 6) * 6;
+        int dayStart = (slot / 7) * 7;
         int heavyCount = 0;
-        for (int k = dayStart; k < dayStart + 6; k++) {
+        for (int k = dayStart; k < dayStart + 7; k++) {
             if (schedule[k] != null && schedule[k].getSubject().isHeavy()) {
                 heavyCount++;
             }
@@ -418,15 +418,15 @@ public class TimetableGenerationService {
     private boolean isTeacherBusyOrExhausted(AlgoTeacher teacher, int slot, Map<String, ScheduledSlot[]> timetables, List<String> currentMajors) {
         if (teacher.globalBusySlots.contains(slot)) return true;
 
-        int dayIndex = slot / 6;
-        int periodIndex = slot % 6;
+        int dayIndex = slot / 7;
+        int periodIndex = slot % 7;
 
-        if (periodIndex == 5) {
-            int firstSlotOfDay = (dayIndex * 6);
+        if (periodIndex == 6) { // Last slot is now 6
+            int firstSlotOfDay = (dayIndex * 7);
             if (teacher.globalBusySlots.contains(firstSlotOfDay)) return true;
         }
         if (periodIndex == 0) {
-            int lastSlotOfDay = (dayIndex * 6) + 5;
+            int lastSlotOfDay = (dayIndex * 7) + 6;
             if (teacher.globalBusySlots.contains(lastSlotOfDay)) return true;
         }
 
@@ -441,10 +441,15 @@ public class TimetableGenerationService {
 
     // --- RECURSIVE SOLVER (YEAR 1 & 2) ---
     private boolean solve(int slot, ScheduledSlot[] schedule, List<AlgoSubject> subjects, List<AlgoRoom> rooms, Set<Integer> freeSlots) {
-        if (slot >= 30) return true;
+        if (slot >= 35) { // Scaled to 35 slots
+            // STRICT RULE: End of week reached. Verify ALL subjects met their 4 slot quota before returning true.
+            return subjects.stream().allMatch(s -> (s.usedMorningSlots + s.usedEveningSlots) >= 4);
+        }
+
+        // Skip slot if it's lunch or dynamically designated as free
         if (freeSlots.contains(slot)) return solve(slot + 1, schedule, subjects, rooms, freeSlots);
 
-        boolean isMorning = (slot % 6) < 3;
+        boolean isMorning = (slot % 7) < 3;
 
         List<AlgoSubject> sortedSubjects = new ArrayList<>(subjects);
         Collections.shuffle(sortedSubjects);
@@ -469,8 +474,8 @@ public class TimetableGenerationService {
                 assignedTeacher = sub.assignedTeacherForSection;
 
                 // Check exhaustion rule for locked teacher
-                if (slot % 6 == 5) {
-                    int firstSlotOfDay = slot - 5;
+                if (slot % 7 == 6) { // Last slot is 6
+                    int firstSlotOfDay = slot - 6;
                     if (schedule[firstSlotOfDay] != null &&
                             schedule[firstSlotOfDay].getAssignedTeacher().getId().equals(assignedTeacher.getId())) {
                         assignedTeacher = null; // Forces backtrack, teacher is exhausted today
@@ -490,8 +495,8 @@ public class TimetableGenerationService {
 
                 for (AlgoTeacher t : shuffledTeachers) {
                     // RULE: Teacher cannot be in First Slot AND Last Slot
-                    if (slot % 6 == 5) {
-                        int firstSlotOfDay = slot - 5;
+                    if (slot % 7 == 6) { // Last slot is 6
+                        int firstSlotOfDay = slot - 6;
                         if (schedule[firstSlotOfDay] != null &&
                                 schedule[firstSlotOfDay].getAssignedTeacher().getId().equals(t.getId())) {
                             continue;
@@ -514,12 +519,9 @@ public class TimetableGenerationService {
             int remainingSpecial = sub.specialRoomCount - sub.usedSpecialRooms;
 
             if (remainingSpecial > 0) {
-                // Prioritize putting special rooms in the evening (TDA slots)
                 if (!isMorning) {
                     requiresSpecialThisSlot = true;
-                }
-                // If we need MORE special rooms than evening slots available, we MUST use morning slots too (e.g., 4 LAB periods)
-                else if (remainingSpecial > (2 - sub.usedEveningSlots)) {
+                } else if (remainingSpecial > (2 - sub.usedEveningSlots)) {
                     requiresSpecialThisSlot = true;
                 }
             }
@@ -582,15 +584,6 @@ public class TimetableGenerationService {
             }
         }
 
-        // --- STRICT SLOT FILLING (Target exactly 4 slots) ---
-        boolean allSubjectsCompleted = subjects.stream()
-                .allMatch(s -> (s.usedMorningSlots + s.usedEveningSlots) >= 4);
-
-        if (allSubjectsCompleted) {
-            schedule[slot] = null;
-            if (solve(slot + 1, schedule, subjects, rooms, freeSlots)) return true;
-        }
-
         return false;
     }
 
@@ -642,6 +635,7 @@ public class TimetableGenerationService {
             throw new RuntimeException("Validation Failed: No rooms found in the database.");
         }
 
+        // Technically there are only 30 USABLE slots (since 5 are lunch), so this math safely remains 30
         long normalRoomSlots = allRooms.stream().filter(r -> !isComputerRoom(r) && !isSpecialRoom(r)).count() * 30;
         long compRoomSlots = allRooms.stream().filter(this::isComputerRoom).count() * 30;
         long specialRoomSlots = allRooms.stream().filter(r -> isSpecialRoom(r) && !isComputerRoom(r)).count() * 30;
@@ -787,8 +781,10 @@ public class TimetableGenerationService {
         while (!sectionSolved && attempts < 100) {
             attempts++;
             for (AlgoSubject s : sectionSubjects) s.reset();
-            ScheduledSlot[] rawSchedule = new ScheduledSlot[30];
-            Set<Integer> freeSlots = generateBalancedFreeSlots(30);
+            ScheduledSlot[] rawSchedule = new ScheduledSlot[35]; // Scaled to 35 slots
+
+            // CALCULATE FREE SLOTS (With permanently locked Lunch periods)
+            Set<Integer> freeSlots = generateBalancedFreeSlots(35, sectionSubjects.size());
 
             // Add Randomness
             Collections.shuffle(sectionSubjects);
@@ -805,7 +801,7 @@ public class TimetableGenerationService {
     }
 
     private int getDailyCount(ScheduledSlot[] schedule, int currentSlot, AlgoSubject sub) {
-        int dayStart = (currentSlot / 6) * 6;
+        int dayStart = (currentSlot / 7) * 7;
         int count = 0;
         for (int k = dayStart; k < currentSlot; k++) {
             if (schedule[k] != null && schedule[k].getSubject().getDbId().equals(sub.getDbId())) {
@@ -816,7 +812,7 @@ public class TimetableGenerationService {
     }
 
     private int getDailyHeavyCount(ScheduledSlot[] schedule, int currentSlot) {
-        int dayStart = (currentSlot / 6) * 6;
+        int dayStart = (currentSlot / 7) * 7;
         int heavyCount = 0;
         for (int k = dayStart; k < currentSlot; k++) {
             if (schedule[k] != null && schedule[k].getSubject().isHeavy()) {
@@ -826,19 +822,54 @@ public class TimetableGenerationService {
         return heavyCount;
     }
 
-    private Set<Integer> generateBalancedFreeSlots(int totalSlots) {
+    private Set<Integer> generateBalancedFreeSlots(int totalSlots, int numSubjects) {
         Set<Integer> slots = new HashSet<>();
+
+        // 1. PERMANENTLY LOCK LUNCH PERIODS (Period Index 3 for every Day)
+        for (int i = 0; i < 5; i++) {
+            slots.add((i * 7) + 3);
+        }
+
+        int requiredSlots = numSubjects * 4;
+        int remainingFreeNeeded = totalSlots - 5 - requiredSlots;
+
+        // If exact fit (e.g. 6 subjects = 24 slots. 35 - 5 - 24 = 6 remaining free slots)
+        if (remainingFreeNeeded <= 0) return slots;
+
         Random rand = new Random();
         int morningFree = 0; int eveningFree = 0;
-        while (slots.size() < 6) {
+        int targetMorning = remainingFreeNeeded / 2;
+        int targetEvening = remainingFreeNeeded - targetMorning;
+
+        int attempts = 0;
+        while (slots.size() < 5 + remainingFreeNeeded && attempts < 1000) {
+            attempts++;
             int r = rand.nextInt(totalSlots);
-            if (slots.contains(r-1) && slots.contains(r-2)) continue;
-            if (slots.contains(r+1) && slots.contains(r+2)) continue;
-            boolean isMorning = (r % 6) < 3;
-            if (isMorning && morningFree >= 3) continue;
-            if (!isMorning && eveningFree >= 3) continue;
-            if (slots.add(r)) { if (isMorning) morningFree++; else eveningFree++; }
+            if (slots.contains(r)) continue;
+
+            // Only apply strict spacing constraints if we have plenty of free slots
+            if (remainingFreeNeeded >= 6) {
+                if (slots.contains(r-1) && slots.contains(r-2)) continue;
+                if (slots.contains(r+1) && slots.contains(r+2)) continue;
+            }
+
+            boolean isMorning = (r % 7) < 3;
+
+            // Prevent bunching all free slots in the morning/evening if we have enough to balance
+            if (isMorning && morningFree >= targetMorning && remainingFreeNeeded > 2) continue;
+            if (!isMorning && eveningFree >= targetEvening && remainingFreeNeeded > 2) continue;
+
+            if (slots.add(r)) {
+                if (isMorning) morningFree++;
+                else eveningFree++;
+            }
         }
+
+        // Fallback: If while loop fails due to tight random rules, just force fill the rest
+        while (slots.size() < 5 + remainingFreeNeeded) {
+            slots.add(rand.nextInt(totalSlots));
+        }
+
         return slots;
     }
 
@@ -856,16 +887,22 @@ public class TimetableGenerationService {
             throw new RuntimeException("DB Configuration Error: 'Timetable Days' or 'Timetable Periods' not found in code_value table.");
         }
 
-        for (int slot = 0; slot < 30; slot++) {
+        for (int slot = 0; slot < 35; slot++) { // Scaled to 35
+            // Because Lunch periods are in freeSlots, they inherently get skipped and no DB record is created for them.
             if (freeSlots.contains(slot) || rawSchedule[slot] == null) continue;
+
             ScheduledSlot result = rawSchedule[slot];
             TimetableData data = new TimetableData();
-            data.setTimetableDay(allDays.get(slot / 6));
-            data.setTimetablePeriod(allPeriods.get(slot % 6));
+
+            data.setTimetableDay(allDays.get(slot / 7));
+            data.setTimetablePeriod(allPeriods.get(slot % 7));
+
             data.setSubject(subjectRepo.getReferenceById(result.getSubject().getDbId()));
             data.setRoom(roomRepo.getReferenceById(result.getRoom().getDbId()));
             data.setTeacher(profileRepo.getReferenceById(result.getAssignedTeacher().getId()));
+            data.setSubType(result.getTypeTag());
             data = timetableDataRepo.save(data);
+
             Timetable timetable = new Timetable();
             timetable.setTimetableInfo(info);
             timetable.setTimetableData(data);
