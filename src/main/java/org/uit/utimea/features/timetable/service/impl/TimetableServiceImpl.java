@@ -10,6 +10,7 @@ import org.uit.utimea.features.timetable.mapper.TimetableMapper;
 import org.uit.utimea.features.timetable.service.TimetableService;
 import org.uit.utimea.shared.repository.TimetableRepository;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -44,7 +45,16 @@ public class TimetableServiceImpl extends BaseServiceImpl<Timetable, TimetableRe
                 "timetableDayId", "timetableData.timetableDay.id",
                 "timetablePeriodId", "timetableData.timetablePeriod.id",
                 "subjectId", "timetableData.subject.id",
-                "roomId", "timetableData.room.id"
+                "roomId", "timetableData.room.id",
+                "teacherId", "timetableData.teacher.id"
         );
+    }
+
+    @Override
+    public List<TimetableResponse> getByTeacherId(Long teacherId) {
+        List<Timetable> timetables = ((TimetableRepository) repository).findByTeacherIdWithAllRelations(teacherId);
+        return timetables.stream()
+                .map(timetableMapper::toResponse)
+                .toList();
     }
 }

@@ -183,10 +183,30 @@ public class TimetableMapper {
                 .name(data.getTimetablePeriod().getName())
                 .build();
 
+        List<TeacherResponse> teachersResponse = null;
+        if (data.getSubject().getTeachers() != null && !data.getSubject().getTeachers().isEmpty()) {
+            teachersResponse = data.getSubject().getTeachers().stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            Profile::getId,
+                            teacher -> teacher,
+                            (existing, replacement) -> existing
+                    ))
+                    .values()
+                    .stream()
+                    .map(teacher -> TeacherResponse.builder()
+                            .id(teacher.getId())
+                            .name(teacher.getName())
+                            .phoneNumber(teacher.getPhoneNumber())
+                            .degree(teacher.getDegree())
+                            .build())
+                    .toList();
+        }
+
         SubjectResponse subjectResponse = SubjectResponse.builder()
                 .id(data.getSubject().getId())
                 .code(data.getSubject().getCode())
                 .description(data.getSubject().getDescription())
+                .teachers(teachersResponse)
                 .build();
 
         RoomResponse roomResponse = RoomResponse.builder()
