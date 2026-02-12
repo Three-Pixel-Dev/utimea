@@ -161,4 +161,15 @@ public class TimetableController {
         );
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apiResponse);
     }
+
+    @GetMapping("/teacher/{teacherId}")
+    public ResponseEntity<ApiResponse> getByTeacherId(@PathVariable Long teacherId, HttpServletRequest httpServletRequest) {
+        List<TimetableResponse> response = timetableService.getByTeacherId(teacherId);
+        ApiResponse apiResponse = ApiResponseUtil.success(
+                response,
+                "Teacher timetables retrieved successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.ok(apiResponse);
+    }
 }

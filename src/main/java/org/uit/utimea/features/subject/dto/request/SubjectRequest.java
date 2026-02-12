@@ -6,5 +6,6 @@ public record SubjectRequest(
         String code,
         String description,
         List<Long> subjectTypeIds,
-        Long roomTypeId
+        Long roomTypeId,
+        List<Long> teacherIds
 ) {}
