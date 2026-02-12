@@ -39,6 +39,9 @@ public class TimetableData extends MasterEntity {
     @JoinColumn(name = "teacher_id", nullable = false)
     private Profile teacher;
 
+    @Column(name="subject_type")
+    private String subType;
+
     @OneToMany(mappedBy = "timetableData", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Timetable> timetables = new ArrayList<>();
 }
