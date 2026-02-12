@@ -6,5 +6,6 @@ public record TimetableFilter(
         Long timetableDayId,
         Long timetablePeriodId,
         Long subjectId,
-        Long roomId
+        Long roomId,
+        Long teacherId
 ) {}
