@@ -52,10 +52,13 @@ public class TimetableGenerationService {
         int specialRoomCount;
         boolean requiresComputerRoom;
 
-        // Counters for current recursion
-        int usedLectures = 0;
-        int usedTDA = 0;
+        // Counters for current recursion (Renamed for domain logic clarity)
+        int usedMorningSlots = 0;
+        int usedEveningSlots = 0;
         int usedSpecialRooms = 0;
+
+        // Locks a specific teacher to this section so they teach all 4 periods
+        AlgoTeacher assignedTeacherForSection = null;
 
         public AlgoSubject(Long dbId, String code, String name, List<AlgoTeacher> teachers, int specialRoomCount, boolean requiresComputerRoom) {
             this.dbId = dbId;
@@ -66,7 +69,12 @@ public class TimetableGenerationService {
             this.requiresComputerRoom = requiresComputerRoom;
         }
 
-        public void reset() { usedLectures = 0; usedTDA = 0; usedSpecialRooms = 0; }
+        public void reset() {
+            usedMorningSlots = 0;
+            usedEveningSlots = 0;
+            usedSpecialRooms = 0;
+            assignedTeacherForSection = null;
+        }
 
         public int getPriorityScore() {
             int score = 0;
@@ -239,14 +247,12 @@ public class TimetableGenerationService {
             if (takingMajors.isEmpty()) continue;
 
             // --- SMART GROUPING LOGIC ---
-            // Group majors into "Classes" based on student count (Max 40 per class)
             List<List<String>> sections = new ArrayList<>();
             List<String> currentSection = new ArrayList<>();
             int currentSectionCount = 0;
 
             for (String major : takingMajors) {
                 int count = majorCounts.getOrDefault(major, 0);
-                // If adding this major keeps us <= 40, add it. Otherwise, close section and start new one.
                 if (currentSectionCount + count <= 40) {
                     currentSection.add(major);
                     currentSectionCount += count;
@@ -265,34 +271,40 @@ public class TimetableGenerationService {
                 AlgoTeacher at = globalTeacherMap.get(p.getId());
                 if(at != null) subjectTeachers.add(at);
             }
-            Collections.shuffle(subjectTeachers); // Randomize teachers
+            Collections.shuffle(subjectTeachers);
 
-            // If no teachers, skip
             if (subjectTeachers.isEmpty()) {
                 log.error("No teachers found for {}", sub.getCode());
                 continue;
             }
 
             AlgoSubject algoSub = mapToAlgoSubject(sub, globalTeacherMap);
-
             int teacherIndex = 0;
 
             for (List<String> sectionMajors : sections) {
-                // Assign a teacher (Round Robin)
+                // Here, we ALREADY assign exactly one teacher for all 4 slots for this specific section/group!
                 AlgoTeacher assignedTeacher = subjectTeachers.get(teacherIndex % subjectTeachers.size());
                 teacherIndex++;
 
-                // Need 4 Slots (2 Lecture, 2 Practical/TDA)
                 int slotsRequired = 4;
                 int slotsBooked = 0;
 
-                // Randomize slot search order
+                // TRACKERS FOR THE NEW RULES
+                int morningBooked = 0;
+                int eveningBooked = 0;
+                int specialRoomsBooked = 0;
+
                 List<Integer> slotOrder = new ArrayList<>();
                 for(int k=0; k<30; k++) slotOrder.add(k);
                 Collections.shuffle(slotOrder);
 
                 for (int slot : slotOrder) {
                     if (slotsBooked >= slotsRequired) break;
+
+                    // STRICT RULE: Max 2 Morning Slots, Max 2 Evening Slots
+                    boolean isMorning = (slot % 6) < 3;
+                    if (isMorning && morningBooked >= 2) continue;
+                    if (!isMorning && eveningBooked >= 2) continue;
 
                     // 1. Check Major Availability
                     boolean majorsFree = true;
@@ -304,10 +316,10 @@ public class TimetableGenerationService {
                     }
                     if (!majorsFree) continue;
 
-                    // 2. Check Daily Limit (Max 2 slots per day per subject)
+                    // 2. Check Daily Limit
                     if (isMajorDailyLimitExceeded(majorTimetables, sectionMajors.get(0), slot, algoSub.getDbId())) continue;
 
-                    // 3. HEAVY SUBJECT CHECK: Spread heavy subjects out
+                    // 3. HEAVY SUBJECT CHECK
                     if (algoSub.isHeavy()) {
                         if (isMajorDailyHeavyLimitExceeded(majorTimetables, sectionMajors.get(0), slot)) continue;
                     }
@@ -315,20 +327,56 @@ public class TimetableGenerationService {
                     // 4. Check Teacher Availability
                     if (isTeacherBusyOrExhausted(assignedTeacher, slot, majorTimetables, sectionMajors)) continue;
 
-                    // 5. Check Room Availability
-                    AlgoRoom bookedRoom = findBestRoom(slot, algoSub, algoRooms);
+                    // 5. Check Special Room Requirements
+                    boolean requiresSpecialThisSlot = false;
+                    int remainingSpecial = algoSub.specialRoomCount - specialRoomsBooked;
+
+                    if (remainingSpecial > 0) {
+                        if (!isMorning) {
+                            requiresSpecialThisSlot = true;
+                        } else if (remainingSpecial > (2 - eveningBooked)) {
+                            requiresSpecialThisSlot = true;
+                        }
+                    }
+
+                    boolean lookingForComputerRoom = requiresSpecialThisSlot && algoSub.requiresComputerRoom;
+                    boolean lookingForSpecialRoom = requiresSpecialThisSlot && !algoSub.requiresComputerRoom;
+
+                    // 6. Check Room Availability
+                    AlgoRoom bookedRoom = null;
+                    List<AlgoRoom> shuffledRooms = new ArrayList<>(algoRooms);
+                    Collections.shuffle(shuffledRooms);
+                    for (AlgoRoom r : shuffledRooms) {
+                        if (r.globalBusySlots.contains(slot)) continue;
+
+                        if (lookingForComputerRoom) {
+                            if (r.isComputerRoom) { bookedRoom = r; break; }
+                        } else if (lookingForSpecialRoom) {
+                            if (r.isSpecialRoom) { bookedRoom = r; break; }
+                        } else {
+                            if (!r.isComputerRoom && !r.isSpecialRoom) { bookedRoom = r; break; }
+                        }
+                    }
                     if (bookedRoom == null) continue;
 
+                    // --- SUCCESS: BOOK IT ---
                     assignedTeacher.globalBusySlots.add(slot);
                     bookedRoom.globalBusySlots.add(slot);
 
-                    String type = (slotsBooked < 2) ? "(L)" : "(TDA)";
-                    ScheduledSlot scheduledSlot = new ScheduledSlot(algoSub, bookedRoom, assignedTeacher, type);
+                    // Give accurate tags based on the room mapped
+                    String typeTag = isMorning ? "(L)" : "(TDA)";
+                    if (lookingForComputerRoom) typeTag = "(PC)";
+                    else if (lookingForSpecialRoom) typeTag = "(LAB)";
+
+                    ScheduledSlot scheduledSlot = new ScheduledSlot(algoSub, bookedRoom, assignedTeacher, typeTag);
 
                     for (String major : sectionMajors) {
                         majorTimetables.get(major)[slot] = scheduledSlot;
                     }
+
                     slotsBooked++;
+                    if (isMorning) morningBooked++; else eveningBooked++;
+                    if (lookingForComputerRoom || lookingForSpecialRoom) specialRoomsBooked++;
                 }
 
                 if (slotsBooked < slotsRequired) {
@@ -385,36 +433,6 @@ public class TimetableGenerationService {
         return false;
     }
 
-    private AlgoRoom findBestRoom(int slot, AlgoSubject sub, List<AlgoRoom> rooms) {
-        List<AlgoRoom> shuffledRooms = new ArrayList<>(rooms);
-        Collections.shuffle(shuffledRooms);
-
-        boolean needComp = sub.requiresComputerRoom;
-
-        for (AlgoRoom r : shuffledRooms) {
-            if (r.globalBusySlots.contains(slot)) continue;
-
-            if (needComp) {
-                if (r.isComputerRoom) return r;
-            } else {
-                if (!r.isComputerRoom && !r.isSpecialRoom) return r;
-            }
-        }
-        return null;
-    }
-
-    private boolean tryBookSlot(int slot, AlgoSubject sub, List<AlgoRoom> rooms) {
-        return false;
-    }
-
-    private AlgoRoom getAssignedRoom(int slot, AlgoSubject sub, List<AlgoRoom> rooms) {
-        return rooms.stream().filter(r -> r.globalBusySlots.contains(slot)).findFirst().orElse(null);
-    }
-
-    private AlgoTeacher getAssignedTeacher(int slot, AlgoSubject sub) {
-        return sub.teachers.stream().filter(t -> t.globalBusySlots.contains(slot)).findFirst().orElse(null);
-    }
-
     private void saveToDatabaseWithArray(ScheduledSlot[] rawSchedule, String sectionName, CodeValue year) {
         Optional<MajorSection> sectionOpt = majorSectionRepo.findByName(sectionName);
         if (sectionOpt.isEmpty()) return;
@@ -429,13 +447,14 @@ public class TimetableGenerationService {
         boolean isMorning = (slot % 6) < 3;
 
         List<AlgoSubject> sortedSubjects = new ArrayList<>(subjects);
-        // RULE: Random Generation
         Collections.shuffle(sortedSubjects);
         sortedSubjects.sort((s1, s2) -> s2.getPriorityScore() - s1.getPriorityScore());
 
         for (AlgoSubject sub : sortedSubjects) {
-            if (isMorning && sub.usedLectures >= 2) continue;
-            if (!isMorning && sub.usedTDA >= 2) continue;
+
+            // STRICT RULE: Max 2 Morning, Max 2 Evening
+            if (isMorning && sub.usedMorningSlots >= 2) continue;
+            if (!isMorning && sub.usedEveningSlots >= 2) continue;
 
             // RULE: Max 2 slots per day per subject
             if (getDailyCount(schedule, slot, sub) >= 2) continue;
@@ -444,35 +463,69 @@ public class TimetableGenerationService {
             if (sub.isHeavy() && getDailyHeavyCount(schedule, slot) >= 2) continue;
 
             AlgoTeacher assignedTeacher = null;
-            int minBusy = Integer.MAX_VALUE;
-            List<AlgoTeacher> shuffledTeachers = new ArrayList<>(sub.teachers);
-            Collections.shuffle(shuffledTeachers);
 
-            for (AlgoTeacher t : shuffledTeachers) {
-                // RULE: Teacher cannot be in First Slot AND Last Slot
+            // STRICT RULE: If a teacher is already locked for this subject in this section, we MUST use them
+            if (sub.assignedTeacherForSection != null) {
+                assignedTeacher = sub.assignedTeacherForSection;
+
+                // Check exhaustion rule for locked teacher
                 if (slot % 6 == 5) {
                     int firstSlotOfDay = slot - 5;
                     if (schedule[firstSlotOfDay] != null &&
-                            schedule[firstSlotOfDay].getAssignedTeacher().getId().equals(t.getId())) {
-                        continue;
+                            schedule[firstSlotOfDay].getAssignedTeacher().getId().equals(assignedTeacher.getId())) {
+                        assignedTeacher = null; // Forces backtrack, teacher is exhausted today
                     }
                 }
 
-                if (!t.globalBusySlots.contains(slot)) {
-                    if (t.globalBusySlots.size() < minBusy) {
-                        minBusy = t.globalBusySlots.size();
-                        assignedTeacher = t;
+                // Check busy slots for locked teacher
+                if (assignedTeacher != null && assignedTeacher.globalBusySlots.contains(slot)) {
+                    assignedTeacher = null; // Forces backtrack, teacher is busy this slot
+                }
+
+            } else {
+                // FIRST PLACEMENT: Pick a teacher and lock them in (Round-robin balancing via minBusy)
+                int minBusy = Integer.MAX_VALUE;
+                List<AlgoTeacher> shuffledTeachers = new ArrayList<>(sub.teachers);
+                Collections.shuffle(shuffledTeachers);
+
+                for (AlgoTeacher t : shuffledTeachers) {
+                    // RULE: Teacher cannot be in First Slot AND Last Slot
+                    if (slot % 6 == 5) {
+                        int firstSlotOfDay = slot - 5;
+                        if (schedule[firstSlotOfDay] != null &&
+                                schedule[firstSlotOfDay].getAssignedTeacher().getId().equals(t.getId())) {
+                            continue;
+                        }
+                    }
+
+                    if (!t.globalBusySlots.contains(slot)) {
+                        if (t.globalBusySlots.size() < minBusy) {
+                            minBusy = t.globalBusySlots.size();
+                            assignedTeacher = t;
+                        }
                     }
                 }
             }
+
             if (assignedTeacher == null) continue;
 
-            boolean lookingForComputerRoom = sub.requiresComputerRoom;
-            boolean lookingForSpecialRoom = false;
+            // --- DOMAIN LOGIC: Smart Room Selection ---
+            boolean requiresSpecialThisSlot = false;
+            int remainingSpecial = sub.specialRoomCount - sub.usedSpecialRooms;
 
-            if (!lookingForComputerRoom && sub.specialRoomCount > 0 && !isMorning && sub.usedSpecialRooms < sub.specialRoomCount) {
-                lookingForSpecialRoom = true;
+            if (remainingSpecial > 0) {
+                // Prioritize putting special rooms in the evening (TDA slots)
+                if (!isMorning) {
+                    requiresSpecialThisSlot = true;
+                }
+                // If we need MORE special rooms than evening slots available, we MUST use morning slots too (e.g., 4 LAB periods)
+                else if (remainingSpecial > (2 - sub.usedEveningSlots)) {
+                    requiresSpecialThisSlot = true;
+                }
             }
+
+            boolean lookingForComputerRoom = requiresSpecialThisSlot && sub.requiresComputerRoom;
+            boolean lookingForSpecialRoom = requiresSpecialThisSlot && !sub.requiresComputerRoom;
 
             AlgoRoom assignedRoom = null;
             List<AlgoRoom> shuffledRooms = new ArrayList<>(rooms);
@@ -494,28 +547,44 @@ public class TimetableGenerationService {
 
             if (assignedRoom == null) continue;
 
+            // Identify if this is the very first time we are assigning this subject in this section
+            boolean isFirstPlacement = (sub.usedMorningSlots + sub.usedEveningSlots == 0);
+            if (isFirstPlacement) {
+                sub.assignedTeacherForSection = assignedTeacher; // LOCK the teacher
+            }
+
             assignedTeacher.globalBusySlots.add(slot);
             assignedRoom.globalBusySlots.add(slot);
 
-            if(isMorning) sub.usedLectures++; else sub.usedTDA++;
+            if(isMorning) sub.usedMorningSlots++; else sub.usedEveningSlots++;
             if(lookingForComputerRoom || lookingForSpecialRoom) sub.usedSpecialRooms++;
 
-            schedule[slot] = new ScheduledSlot(sub, assignedRoom, assignedTeacher, isMorning ? "(L)" : "(TDA)");
+            // Give accurate tags based on the room mapped
+            String typeTag = isMorning ? "(L)" : "(TDA)";
+            if (lookingForComputerRoom) typeTag = "(PC)";
+            else if (lookingForSpecialRoom) typeTag = "(LAB)";
+
+            schedule[slot] = new ScheduledSlot(sub, assignedRoom, assignedTeacher, typeTag);
 
             if (solve(slot + 1, schedule, subjects, rooms, freeSlots)) return true;
 
-            // Backtrack
+            // --- Backtrack ---
             schedule[slot] = null;
             assignedTeacher.globalBusySlots.remove(slot);
             assignedRoom.globalBusySlots.remove(slot);
 
-            if(isMorning) sub.usedLectures--; else sub.usedTDA--;
+            if(isMorning) sub.usedMorningSlots--; else sub.usedEveningSlots--;
             if(lookingForComputerRoom || lookingForSpecialRoom) sub.usedSpecialRooms--;
+
+            // If we are undoing the very first placement, UNLOCK the teacher
+            if (isFirstPlacement) {
+                sub.assignedTeacherForSection = null;
+            }
         }
 
-        // --- STRICT SLOT FILLING (Target 4 slots) ---
+        // --- STRICT SLOT FILLING (Target exactly 4 slots) ---
         boolean allSubjectsCompleted = subjects.stream()
-                .allMatch(s -> (s.usedLectures + s.usedTDA) >= 4);
+                .allMatch(s -> (s.usedMorningSlots + s.usedEveningSlots) >= 4);
 
         if (allSubjectsCompleted) {
             schedule[slot] = null;
@@ -549,7 +618,6 @@ public class TimetableGenerationService {
             String typeName = s.getRoomType().getName();
             if ("Computer Room".equalsIgnoreCase(typeName) || "PC".equalsIgnoreCase(typeName)) {
                 requiresComputerRoom = true;
-                spCount = 4;
             }
         }
 
@@ -722,7 +790,7 @@ public class TimetableGenerationService {
             ScheduledSlot[] rawSchedule = new ScheduledSlot[30];
             Set<Integer> freeSlots = generateBalancedFreeSlots(30);
 
-            // Add Randomness: Shuffle the subjects for the root level of recursion
+            // Add Randomness
             Collections.shuffle(sectionSubjects);
 
             if (solve(0, rawSchedule, sectionSubjects, algoRooms, freeSlots)) {
