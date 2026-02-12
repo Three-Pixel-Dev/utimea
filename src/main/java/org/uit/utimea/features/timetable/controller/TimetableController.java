@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.uit.utimea.features.timetable.dto.request.CombineClassRequest;
 import org.uit.utimea.features.timetable.dto.request.TimetableGenerationRequest;
 import org.uit.utimea.features.timetable.dto.response.TimetableResponseDto;
 import org.uit.utimea.features.timetable.service.impl.TimetableGenerationService;
@@ -168,6 +169,17 @@ public class TimetableController {
         ApiResponse apiResponse = ApiResponseUtil.success(
                 response,
                 "Teacher timetables retrieved successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @PostMapping("/combine")
+    public ResponseEntity<ApiResponse> combineClass(@RequestBody CombineClassRequest request, HttpServletRequest httpServletRequest) {
+        timetableService.combineClass(request);
+        ApiResponse apiResponse = ApiResponseUtil.success(
+                null,
+                "Classes combined successfully",
                 httpServletRequest
         );
         return ResponseEntity.ok(apiResponse);
