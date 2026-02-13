@@ -10,5 +10,6 @@ import java.util.List;
 
 public interface TimetableService extends BaseService<TimetableRequest, TimetableResponse, TimetableFilter> {
     List<TimetableResponse> getByTeacherId(Long teacherId);
+    List<TimetableResponse> getByMajorSectionId(Long majorSectionId);
     void combineClass(CombineClassRequest request);
 }

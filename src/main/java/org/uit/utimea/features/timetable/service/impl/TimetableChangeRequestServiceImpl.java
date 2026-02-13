@@ -18,6 +18,7 @@ import org.uit.utimea.features.timetable.mapper.TimetableChangeRequestMapper;
 import org.uit.utimea.features.timetable.service.TimetableChangeRequestService;
 import org.uit.utimea.features.notification.dto.NotificationRequest;
 import org.uit.utimea.features.notification.service.NotificationService;
+import org.uit.utimea.features.notification.service.NotificationTextGenerator;
 import org.uit.utimea.shared.dto.request.PageAndFilterDTO;
 import org.uit.utimea.shared.dto.response.PaginationDTO;
 import org.uit.utimea.shared.entity.Timetable;
@@ -45,6 +46,7 @@ public class TimetableChangeRequestServiceImpl implements TimetableChangeRequest
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
     private final NotificationService notificationService;
+    private final NotificationTextGenerator notificationTextGenerator;
 
     @Override
     @Transactional
@@ -249,11 +251,15 @@ public class TimetableChangeRequestServiceImpl implements TimetableChangeRequest
                         : "PERIOD_CHANGE_DECLINED";
             }
 
+            String readableText = notificationTextGenerator.generateReadableText(
+                    action, teacherId, timetableInfoId, majorSectionId);
+
             NotificationRequest notificationRequest = new NotificationRequest(
                     action,
                     teacherId,
                     timetableInfoId,
-                    majorSectionId
+                    majorSectionId,
+                    readableText
             );
 
             notificationService.createNotification(notificationRequest);

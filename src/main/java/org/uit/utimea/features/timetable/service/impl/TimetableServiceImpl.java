@@ -10,6 +10,9 @@ import org.uit.utimea.features.timetable.dto.request.TimetableRequest;
 import org.uit.utimea.features.timetable.dto.response.TimetableResponse;
 import org.uit.utimea.features.timetable.mapper.TimetableMapper;
 import org.uit.utimea.features.timetable.service.TimetableService;
+import org.uit.utimea.features.notification.dto.NotificationRequest;
+import org.uit.utimea.features.notification.service.NotificationService;
+import org.uit.utimea.features.notification.service.NotificationTextGenerator;
 import org.uit.utimea.shared.entity.*;
 import org.uit.utimea.shared.repository.*;
 import org.uit.utimea.shared.service.impl.BaseServiceImpl;
@@ -28,13 +31,17 @@ public class TimetableServiceImpl extends BaseServiceImpl<Timetable, TimetableRe
     private final RoomRepository roomRepository;
     private final CodeValueRepository codeValueRepository;
     private final SubjectRepository subjectRepository;
+    private final NotificationService notificationService;
+    private final NotificationTextGenerator notificationTextGenerator;
 
     public TimetableServiceImpl(TimetableRepository timetableRepository, TimetableMapper timetableMapper,
                                 TimetableDataRepository timetableDataRepository,
                                 ProfileRepository profileRepository,
                                 RoomRepository roomRepository,
                                 CodeValueRepository codeValueRepository,
-                                SubjectRepository subjectRepository) {
+                                SubjectRepository subjectRepository,
+                                NotificationService notificationService,
+                                NotificationTextGenerator notificationTextGenerator) {
         super(timetableRepository);
         this.timetableMapper = timetableMapper;
         this.timetableRepository = timetableRepository;
@@ -43,6 +50,8 @@ public class TimetableServiceImpl extends BaseServiceImpl<Timetable, TimetableRe
         this.roomRepository = roomRepository;
         this.codeValueRepository = codeValueRepository;
         this.subjectRepository = subjectRepository;
+        this.notificationService = notificationService;
+        this.notificationTextGenerator = notificationTextGenerator;
     }
 
     @Override
@@ -56,8 +65,55 @@ public class TimetableServiceImpl extends BaseServiceImpl<Timetable, TimetableRe
     }
 
     @Override
+    @Transactional
+    public TimetableResponse update(Long id, TimetableRequest request) {
+        Timetable entity = findByIdOrThrow(id);
+        TimetableInfo oldTimetableInfo = entity.getTimetableInfo();
+        Long oldMajorSectionId = oldTimetableInfo != null ? oldTimetableInfo.getMajorSection().getId() : null;
+        Long oldTimetableInfoId = oldTimetableInfo != null ? oldTimetableInfo.getId() : null;
+        Long oldTeacherId = entity.getTimetableData() != null && entity.getTimetableData().getTeacher() != null
+                ? entity.getTimetableData().getTeacher().getId() : null;
+
+        timetableMapper.updateEntity(entity, request);
+        Timetable updatedEntity = repository.save(entity);
+
+        // Send notification for timetable update
+        try {
+            TimetableInfo newTimetableInfo = updatedEntity.getTimetableInfo();
+            Long newMajorSectionId = newTimetableInfo != null ? newTimetableInfo.getMajorSection().getId() : oldMajorSectionId;
+            Long newTimetableInfoId = newTimetableInfo != null ? newTimetableInfo.getId() : oldTimetableInfoId;
+            Long newTeacherId = updatedEntity.getTimetableData() != null && updatedEntity.getTimetableData().getTeacher() != null
+                    ? updatedEntity.getTimetableData().getTeacher().getId() : oldTeacherId;
+
+            String readableText = notificationTextGenerator.generateReadableText(
+                    "TIMETABLE_UPDATE", newTeacherId, newTimetableInfoId, newMajorSectionId);
+
+            NotificationRequest notificationRequest = new NotificationRequest(
+                    "TIMETABLE_UPDATE",
+                    newTeacherId,
+                    newTimetableInfoId,
+                    newMajorSectionId,
+                    readableText
+            );
+
+            notificationService.createNotification(notificationRequest);
+            log.info("Notification sent for timetable update {}", updatedEntity.getId());
+        } catch (Exception e) {
+            log.error("Failed to send notification for timetable update {}", updatedEntity.getId(), e);
+            // Don't throw exception - notification failure shouldn't break the update
+        }
+
+        return mapEntityToResponse(updatedEntity);
+    }
+
+    @Override
     protected void updateEntityFromRequest(Timetable entity, TimetableRequest request) {
         timetableMapper.updateEntity(entity, request);
+    }
+
+    private Timetable findByIdOrThrow(Long id) {
+        return timetableRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Timetable not found with id: " + id));
     }
 
     @Override
@@ -76,6 +132,14 @@ public class TimetableServiceImpl extends BaseServiceImpl<Timetable, TimetableRe
     @Override
     public List<TimetableResponse> getByTeacherId(Long teacherId) {
         List<Timetable> timetables = timetableRepository.findByTeacherIdWithAllRelations(teacherId);
+        return timetables.stream()
+                .map(timetableMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public List<TimetableResponse> getByMajorSectionId(Long majorSectionId) {
+        List<Timetable> timetables = timetableRepository.findByMajorSectionIdWithAllRelations(majorSectionId);
         return timetables.stream()
                 .map(timetableMapper::toResponse)
                 .toList();
@@ -199,6 +263,38 @@ public class TimetableServiceImpl extends BaseServiceImpl<Timetable, TimetableRe
 
         if (countUsingData2 == 0) {
             timetableDataRepository.delete(timetableData2);
+        }
+
+        // Send notifications for both major sections
+        try {
+            // Notification for section 1
+            String readableText1 = notificationTextGenerator.generateReadableText(
+                    "COMBINE_CLASS", request.teacherId(), timetableInfo1.getId(), majorSection1Id);
+            NotificationRequest notificationRequest1 = new NotificationRequest(
+                    "COMBINE_CLASS",
+                    request.teacherId(),
+                    timetableInfo1.getId(),
+                    majorSection1Id,
+                    readableText1
+            );
+            notificationService.createNotification(notificationRequest1);
+
+            // Notification for section 2
+            String readableText2 = notificationTextGenerator.generateReadableText(
+                    "COMBINE_CLASS", request.teacherId(), timetableInfo2.getId(), majorSection2Id);
+            NotificationRequest notificationRequest2 = new NotificationRequest(
+                    "COMBINE_CLASS",
+                    request.teacherId(),
+                    timetableInfo2.getId(),
+                    majorSection2Id,
+                    readableText2
+            );
+            notificationService.createNotification(notificationRequest2);
+
+            log.info("Notifications sent for combined classes for sections {} and {}", majorSection1Id, majorSection2Id);
+        } catch (Exception e) {
+            log.error("Failed to send notifications for combined classes", e);
+            // Don't throw exception - notification failure shouldn't break the combine operation
         }
 
         log.info("Successfully combined classes for sections {} and {}", majorSection1Id, majorSection2Id);
