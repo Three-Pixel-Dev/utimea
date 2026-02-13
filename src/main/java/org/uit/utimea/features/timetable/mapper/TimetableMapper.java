@@ -22,6 +22,7 @@ public class TimetableMapper {
     private final CodeValueRepository codeValueRepository;
     private final SubjectRepository subjectRepository;
     private final RoomRepository roomRepository;
+    private final ProfileRepository profileRepository;
 
     public Timetable toEntity(TimetableRequest request) {
         TimetableInfo timetableInfo = findOrCreateTimetableInfo(
@@ -33,7 +34,9 @@ public class TimetableMapper {
                 request.timetableDayId(),
                 request.timetablePeriodId(),
                 request.subjectId(),
-                request.roomId()
+                request.roomId(),
+                request.teacherId(),
+                request.subjectTypeId()
         );
 
         return Timetable.builder()
@@ -69,7 +72,9 @@ public class TimetableMapper {
                 request.timetableDayId(),
                 request.timetablePeriodId(),
                 request.subjectId(),
-                request.roomId()
+                request.roomId(),
+                request.teacherId(),
+                request.subjectTypeId()
         );
 
         entity.setTimetableInfo(timetableInfo);
@@ -111,7 +116,7 @@ public class TimetableMapper {
     }
 
     private TimetableData findOrCreateTimetableData(Long timetableDayId, Long timetablePeriodId,
-                                                     Long subjectId, Long roomId) {
+                                                     Long subjectId, Long roomId, Long teacherId, Long subjectTypeId) {
         CodeValue timetableDay = codeValueRepository.findById(timetableDayId)
                 .orElseThrow(() -> new RuntimeException("CodeValue not found with id: " + timetableDayId));
 
@@ -124,11 +129,32 @@ public class TimetableMapper {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Room not found with id: " + roomId));
 
+        Profile teacher = profileRepository.findById(teacherId)
+                .orElseThrow(() -> new RuntimeException("Teacher not found with id: " + teacherId));
+
+        String subType;
+        if (subjectTypeId != null) {
+            CodeValue subjectType = codeValueRepository.findById(subjectTypeId)
+                    .orElseThrow(() -> new RuntimeException("Subject type not found with id: " + subjectTypeId));
+            // Verify that this subject type belongs to the subject
+            if (subject.getSubjectTypes() != null && subject.getSubjectTypes().stream()
+                    .anyMatch(st -> st.getId().equals(subjectTypeId))) {
+                subType = subjectType.getName();
+            } else {
+                subType = null;
+                throw new RuntimeException("Subject type " + subjectTypeId + " is not associated with subject " + subjectId);
+            }
+        } else {
+            subType = null;
+        }
+
         List<TimetableData> existing = timetableDataRepository.findAll().stream()
                 .filter(data -> data.getTimetableDay().getId().equals(timetableDayId) &&
                         data.getTimetablePeriod().getId().equals(timetablePeriodId) &&
                         data.getSubject().getId().equals(subjectId) &&
-                        data.getRoom().getId().equals(roomId))
+                        data.getRoom().getId().equals(roomId) &&
+                        data.getTeacher() != null && data.getTeacher().getId().equals(teacherId) &&
+                        (subType == null ? data.getSubType() == null : subType.equals(data.getSubType())))
                 .toList();
 
         if (!existing.isEmpty()) {
@@ -140,6 +166,8 @@ public class TimetableMapper {
                 .timetablePeriod(timetablePeriod)
                 .subject(subject)
                 .room(room)
+                .teacher(teacher)
+                .subType(subType)
                 .build();
 
         return timetableDataRepository.save(newData);
@@ -168,7 +196,7 @@ public class TimetableMapper {
                 .build();
     }
 
-    private TimetableDataResponse mapTimetableDataToResponse(TimetableData data) {
+    public TimetableDataResponse mapTimetableDataToResponse(TimetableData data) {
         if (data == null) {
             return null;
         }
