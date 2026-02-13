@@ -13,7 +13,7 @@ import org.uit.utimea.shared.repository.CodeRepository;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-@Order(1)
+@Order(2)
 public class CodeInitializr implements CommandLineRunner {
 
     private final CodeRepository codeRepository;

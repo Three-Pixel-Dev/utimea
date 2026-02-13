@@ -75,7 +75,7 @@ public class TimetableGenerationService {
             usedSpecialRooms = 0;
             assignedTeacherForSection = null;
         }
-
+            // java pc room, myanmrt normal
         public int getPriorityScore() {
             int score = 0;
             if (requiresComputerRoom) score += 200;
