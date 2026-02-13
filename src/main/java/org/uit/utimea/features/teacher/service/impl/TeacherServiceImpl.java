@@ -59,7 +59,7 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
 
     @Override
     public TeacherResponse findById(Long id) {
-        Profile entity = repository.findById(id)
+        Profile entity = ((ProfileRepository) repository).findByIdWithUser(id)
                 .orElseThrow(() -> new EntityNotFoundException("Profile not found with id: " + id));
         // Verify it's a teacher (has degree or department)
         if (entity.getDegree() == null && entity.getDepartment() == null) {
@@ -108,6 +108,8 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
         
         // Add teacher filter (must have degree or department)
         Specification<Profile> teacherSpec = (root, query, cb) -> {
+            // Fetch User relationship to avoid lazy loading issues
+            root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
             Predicate hasDegree = cb.isNotNull(root.get("degree"));
             Predicate hasDepartment = cb.isNotNull(root.get("department"));
             return cb.or(hasDegree, hasDepartment);

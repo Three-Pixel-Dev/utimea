@@ -20,6 +20,7 @@ import org.uit.utimea.shared.repository.CodeValueRepository;
 import org.uit.utimea.shared.repository.CodeRepository;
 import org.uit.utimea.shared.entity.CodeValue;
 import org.uit.utimea.shared.entity.Code;
+import org.uit.utimea.shared.repository.UserRepository;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -42,12 +43,14 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
     private final CodeValueRepository codeValueRepository;
     private final CodeRepository codeRepository;
     private final TeacherMapper teacherMapper;
+    private final UserRepository userRepository;
 
     public TeacherExcelService(
             TeacherService teacherService,
             CodeValueRepository codeValueRepository,
             CodeRepository codeRepository,
             TeacherMapper teacherMapper,
+            UserRepository userRepository,
             @org.springframework.beans.factory.annotation.Qualifier("excelThreadPool") ExecutorService excelThreadPool,
             ExcelConfig excelConfig) {
         super(excelThreadPool, excelConfig.excelBatchSize());
@@ -55,16 +58,17 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
         this.codeValueRepository = codeValueRepository;
         this.codeRepository = codeRepository;
         this.teacherMapper = teacherMapper;
+        this.userRepository = userRepository;
     }
 
     @Override
     protected List<String> getColumnHeaders() {
-        return List.of("Name", "Phone Number", "Degree", "Department Name");
+        return List.of("Name", "Phone Number", "Email", "Degree", "Department Name");
     }
 
     @Override
     protected List<Integer> getColumnWidths() {
-        return List.of(30, 20, 20, 30);
+        return List.of(30, 20, 30, 20, 30);
     }
 
     @Override
@@ -128,7 +132,7 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
                     departmentNames.toArray(new String[0])
             );
             
-            CellRangeAddressList addressList = new CellRangeAddressList(firstRow, lastRow, 3, 3);
+            CellRangeAddressList addressList = new CellRangeAddressList(firstRow, lastRow, 4, 4);
             DataValidation validation = validationHelper.createValidation(constraint, addressList);
             
             validation.setShowErrorBox(true);
@@ -166,12 +170,17 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
                 teacher.setPhoneNumber(getCellValueAsString(phoneCell));
             }
 
-            Cell degreeCell = row.getCell(2);
+            Cell emailCell = row.getCell(2);
+            if (emailCell != null) {
+                teacher.setEmail(getCellValueAsString(emailCell));
+            }
+
+            Cell degreeCell = row.getCell(3);
             if (degreeCell != null) {
                 teacher.setDegree(getCellValueAsString(degreeCell));
             }
 
-            Cell deptCell = row.getCell(3);
+            Cell deptCell = row.getCell(4);
             if (deptCell != null) {
                 teacher.setDepartmentName(getCellValueAsString(deptCell));
             }
@@ -195,8 +204,9 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
             
             createCell(row, 0, teacher.getName(), dataStyle);
             createCell(row, 1, teacher.getPhoneNumber(), dataStyle);
-            createCell(row, 2, teacher.getDegree(), dataStyle);
-            createCell(row, 3, teacher.getDepartmentName(), dataStyle);
+            createCell(row, 2, teacher.getEmail(), dataStyle);
+            createCell(row, 3, teacher.getDegree(), dataStyle);
+            createCell(row, 4, teacher.getDepartmentName(), dataStyle);
         }
         
         if (sheet instanceof XSSFSheet) {
@@ -223,6 +233,9 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
     public List<ExcelValidationError> validateExcelData(List<TeacherExcelDTO> excelData) {
         List<ExcelValidationError> errors = new ArrayList<>();
         
+        // Track emails within the Excel file to detect duplicates
+        java.util.Set<String> emailsInFile = new java.util.HashSet<>();
+        
         for (int i = 0; i < excelData.size(); i++) {
             TeacherExcelDTO teacher = excelData.get(i);
             int rowNumber = i + 2;
@@ -233,6 +246,48 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
                         .column("Name")
                         .message("Name is required")
                         .build());
+            }
+
+            if (teacher.getEmail() == null || teacher.getEmail().trim().isEmpty()) {
+                errors.add(ExcelValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .column("Email")
+                        .message("Email is required")
+                        .build());
+            } else {
+                String email = teacher.getEmail().trim();
+                
+                // Validate email format
+                if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    errors.add(ExcelValidationError.builder()
+                            .rowNumber(rowNumber)
+                            .column("Email")
+                            .message("Invalid email format")
+                            .invalidValue(email)
+                            .build());
+                } else {
+                    // Check for duplicate email within the same Excel file
+                    if (emailsInFile.contains(email.toLowerCase())) {
+                        errors.add(ExcelValidationError.builder()
+                                .rowNumber(rowNumber)
+                                .column("Email")
+                                .message("Email '" + email + "' is duplicated in this file")
+                                .invalidValue(email)
+                                .build());
+                    } else {
+                        emailsInFile.add(email.toLowerCase());
+                        
+                        // Check if email already exists in the database
+                        if (userRepository.findByEmail(email).isPresent()) {
+                            errors.add(ExcelValidationError.builder()
+                                    .rowNumber(rowNumber)
+                                    .column("Email")
+                                    .message("Email '" + email + "' already exists in the system")
+                                    .invalidValue(email)
+                                    .build());
+                        }
+                    }
+                }
             }
 
             if (teacher.getDepartmentName() != null && !teacher.getDepartmentName().trim().isEmpty()) {
@@ -280,6 +335,7 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
         return new TeacherRequest(
                 excelDto.getName(),
                 excelDto.getPhoneNumber(),
+                excelDto.getEmail(),
                 excelDto.getDegree(),
                 departmentId
         );
@@ -290,6 +346,7 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
         return TeacherExcelDTO.builder()
                 .name(response.name())
                 .phoneNumber(response.phoneNumber())
+                .email(response.email())
                 .degree(response.degree())
                 .departmentName(response.department() != null ? response.department().name() : null)
                 .build();

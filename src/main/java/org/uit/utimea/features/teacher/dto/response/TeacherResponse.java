@@ -8,6 +8,7 @@ public record TeacherResponse(
         Long id,
         String name,
         String phoneNumber,
+        String email,
         String degree,
         CodeValueResponse department,
         MasterData masterData

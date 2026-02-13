@@ -16,6 +16,7 @@ public class TeacherExcelDTO {
     
     private String name;
     private String phoneNumber;
+    private String email;
     private String degree;
     private String departmentName;
 }

@@ -8,6 +8,7 @@ public record StudentResponse(
         Long id,
         String name,
         String phoneNumber,
+        String email,
         CodeValueResponse batch,
         MajorSectionResponse majorSection,
         MasterData masterData

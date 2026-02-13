@@ -23,6 +23,7 @@ import org.uit.utimea.shared.excel.ExcelValidationError;
 import org.uit.utimea.shared.repository.CodeRepository;
 import org.uit.utimea.shared.repository.CodeValueRepository;
 import org.uit.utimea.shared.repository.MajorSectionRepository;
+import org.uit.utimea.shared.repository.UserRepository;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -47,6 +48,7 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
     private final CodeRepository codeRepository;
     private final MajorSectionRepository majorSectionRepository;
     private final StudentMapper studentMapper;
+    private final UserRepository userRepository;
 
     public StudentExcelService(
             StudentService studentService,
@@ -54,6 +56,7 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
             CodeRepository codeRepository,
             MajorSectionRepository majorSectionRepository,
             StudentMapper studentMapper,
+            UserRepository userRepository,
             @org.springframework.beans.factory.annotation.Qualifier("excelThreadPool") ExecutorService excelThreadPool,
             ExcelConfig excelConfig) {
         super(excelThreadPool, excelConfig.excelBatchSize());
@@ -62,16 +65,17 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
         this.codeRepository = codeRepository;
         this.majorSectionRepository = majorSectionRepository;
         this.studentMapper = studentMapper;
+        this.userRepository = userRepository;
     }
 
     @Override
     protected List<String> getColumnHeaders() {
-        return List.of("Name", "Phone Number", "Batch Name", "Major Section Name");
+        return List.of("Name", "Phone Number", "Email", "Batch Name", "Major Section Name");
     }
 
     @Override
     protected List<Integer> getColumnWidths() {
-        return List.of(30, 20, 20, 30);
+        return List.of(30, 20, 30, 20, 30);
     }
 
     @Override
@@ -136,7 +140,7 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
                     batchNames.toArray(new String[0])
             );
             
-            CellRangeAddressList addressList = new CellRangeAddressList(firstRow, lastRow, 2, 2);
+            CellRangeAddressList addressList = new CellRangeAddressList(firstRow, lastRow, 3, 3);
             DataValidation validation = validationHelper.createValidation(constraint, addressList);
             
             validation.setShowErrorBox(true);
@@ -182,7 +186,7 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
                         majorSectionNames.toArray(new String[0])
                 );
                 
-                CellRangeAddressList addressList = new CellRangeAddressList(firstRow, lastRow, 3, 3);
+                CellRangeAddressList addressList = new CellRangeAddressList(firstRow, lastRow, 4, 4);
                 DataValidation validation = validationHelper.createValidation(constraint, addressList);
                 
                 validation.setShowErrorBox(true);
@@ -266,7 +270,7 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
                     namedRangeName
             );
             
-            CellRangeAddressList addressList = new CellRangeAddressList(firstRow, lastRow, 3, 3);
+            CellRangeAddressList addressList = new CellRangeAddressList(firstRow, lastRow, 4, 4);
             DataValidation validation = validationHelper.createValidation(constraint, addressList);
             
             validation.setShowErrorBox(true);
@@ -306,12 +310,17 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
                 student.setPhoneNumber(getCellValueAsString(phoneCell));
             }
 
-            Cell batchCell = row.getCell(2);
+            Cell emailCell = row.getCell(2);
+            if (emailCell != null) {
+                student.setEmail(getCellValueAsString(emailCell));
+            }
+
+            Cell batchCell = row.getCell(3);
             if (batchCell != null) {
                 student.setBatchName(getCellValueAsString(batchCell));
             }
 
-            Cell majorSectionCell = row.getCell(3);
+            Cell majorSectionCell = row.getCell(4);
             if (majorSectionCell != null) {
                 student.setMajorSectionName(getCellValueAsString(majorSectionCell));
             }
@@ -335,8 +344,9 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
             
             createCell(row, 0, student.getName(), dataStyle);
             createCell(row, 1, student.getPhoneNumber(), dataStyle);
-            createCell(row, 2, student.getBatchName(), dataStyle);
-            createCell(row, 3, student.getMajorSectionName(), dataStyle);
+            createCell(row, 2, student.getEmail(), dataStyle);
+            createCell(row, 3, student.getBatchName(), dataStyle);
+            createCell(row, 4, student.getMajorSectionName(), dataStyle);
         }
         
         if (sheet instanceof XSSFSheet) {
@@ -365,6 +375,9 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
     public List<ExcelValidationError> validateExcelData(List<StudentExcelDTO> excelData) {
         List<ExcelValidationError> errors = new ArrayList<>();
         
+        // Track emails within the Excel file to detect duplicates
+        java.util.Set<String> emailsInFile = new java.util.HashSet<>();
+        
         for (int i = 0; i < excelData.size(); i++) {
             StudentExcelDTO student = excelData.get(i);
             int rowNumber = i + 2;
@@ -375,6 +388,48 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
                         .column("Name")
                         .message("Name is required")
                         .build());
+            }
+
+            if (student.getEmail() == null || student.getEmail().trim().isEmpty()) {
+                errors.add(ExcelValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .column("Email")
+                        .message("Email is required")
+                        .build());
+            } else {
+                String email = student.getEmail().trim();
+                
+                // Validate email format
+                if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    errors.add(ExcelValidationError.builder()
+                            .rowNumber(rowNumber)
+                            .column("Email")
+                            .message("Invalid email format")
+                            .invalidValue(email)
+                            .build());
+                } else {
+                    // Check for duplicate email within the same Excel file
+                    if (emailsInFile.contains(email.toLowerCase())) {
+                        errors.add(ExcelValidationError.builder()
+                                .rowNumber(rowNumber)
+                                .column("Email")
+                                .message("Email '" + email + "' is duplicated in this file")
+                                .invalidValue(email)
+                                .build());
+                    } else {
+                        emailsInFile.add(email.toLowerCase());
+                        
+                        // Check if email already exists in the database
+                        if (userRepository.findByEmail(email).isPresent()) {
+                            errors.add(ExcelValidationError.builder()
+                                    .rowNumber(rowNumber)
+                                    .column("Email")
+                                    .message("Email '" + email + "' already exists in the system")
+                                    .invalidValue(email)
+                                    .build());
+                        }
+                    }
+                }
             }
 
             if (student.getBatchName() != null && !student.getBatchName().trim().isEmpty()) {
@@ -442,6 +497,7 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
         return new StudentRequest(
                 excelDto.getName(),
                 excelDto.getPhoneNumber(),
+                excelDto.getEmail(),
                 batchId,
                 majorSectionId
         );
@@ -452,6 +508,7 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
         return StudentExcelDTO.builder()
                 .name(response.name())
                 .phoneNumber(response.phoneNumber())
+                .email(response.email())
                 .batchName(response.batch() != null ? response.batch().name() : null)
                 .majorSectionName(response.majorSection() != null ? response.majorSection().name() : null)
                 .build();

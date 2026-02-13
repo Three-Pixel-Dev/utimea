@@ -36,4 +36,8 @@ public class Profile extends MasterEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "major_section_id")
     private MajorSection majorSection; // student
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", unique = true)
+    private User user; // Link to User entity
 }
