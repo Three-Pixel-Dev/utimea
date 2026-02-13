@@ -62,7 +62,7 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
 
     @Override
     public StudentResponse findById(Long id) {
-        Profile entity = repository.findById(id)
+        Profile entity = ((ProfileRepository) repository).findByIdWithUser(id)
                 .orElseThrow(() -> new EntityNotFoundException("Profile not found with id: " + id));
         // Verify it's a student (has batch or majorSection)
         if (entity.getBatch() == null && entity.getMajorSection() == null) {
@@ -111,6 +111,8 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
         
         // Add student filter (must have batch or majorSection)
         Specification<Profile> studentSpec = (root, query, cb) -> {
+            // Fetch User relationship to avoid lazy loading issues
+            root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
             Predicate hasBatch = cb.isNotNull(root.get("batch"));
             Predicate hasMajorSection = cb.isNotNull(root.get("majorSection"));
             return cb.or(hasBatch, hasMajorSection);
