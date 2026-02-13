@@ -174,6 +174,17 @@ public class TimetableController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    @GetMapping("/student/{majorSectionId}")
+    public ResponseEntity<ApiResponse> getByMajorSectionId(@PathVariable Long majorSectionId, HttpServletRequest httpServletRequest) {
+        List<TimetableResponse> response = timetableService.getByMajorSectionId(majorSectionId);
+        ApiResponse apiResponse = ApiResponseUtil.success(
+                response,
+                "Student timetables retrieved successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.ok(apiResponse);
+    }
+
     @PostMapping("/combine")
     public ResponseEntity<ApiResponse> combineClass(@RequestBody CombineClassRequest request, HttpServletRequest httpServletRequest) {
         timetableService.combineClass(request);
