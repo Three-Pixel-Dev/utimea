@@ -14,7 +14,7 @@ import org.uit.utimea.shared.repository.UserRepository;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-@Order(1)
+@Order(2)
 public class UserInitializr implements CommandLineRunner {
 
     private final UserRepository userRepository;
@@ -52,13 +52,13 @@ public class UserInitializr implements CommandLineRunner {
 
         String teacherEmail = "teacher@utimea.com";
         String teacherPassword = "teacher@123";
-
         userRepository.findByEmail(teacherEmail).orElseGet(() -> {
             User teacher = User.builder()
                     .email(teacherEmail)
                     .password(passwordEncoder.encode(teacherPassword))
                     .role(teacherRole)
                     .build();
+            System.out.println("Teacher password is "+passwordEncoder.encode(teacherPassword));
             log.info("Initializing default teacher user: {}", teacherEmail);
             return userRepository.save(teacher);
         });

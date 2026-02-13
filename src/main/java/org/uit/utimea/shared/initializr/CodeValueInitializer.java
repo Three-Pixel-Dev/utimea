@@ -16,7 +16,7 @@ import org.uit.utimea.shared.repository.CodeValueRepository;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-@Order(2)
+@Order(3)
 public class CodeValueInitializer implements CommandLineRunner {
 
     private final CodeRepository codeRepository;
@@ -44,18 +44,18 @@ public class CodeValueInitializer implements CommandLineRunner {
         initializeCodeValue("Batch-10", "BATCH");
         initializeCodeValue("Batch-11", "BATCH");
 
-        initializeCodeValue("2025-2026 Academic Year, Semester – (I)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (II)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (III)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (IV)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (V)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (VI)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (VII)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (VIII)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (IX)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (X)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (XI)", "ACADEMIC_YEAR");
-        initializeCodeValue("2025-2026 Academic Year, Semester – (XII)", "ACADEMIC_YEAR");
+        initializeCodeValue("2025-2026 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2026-2027 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2027-2028 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2028-2029 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2029-2030 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2030-2031 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2031-2032 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2032-2033 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2033-2034 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2034-2035 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2035-2036 Academic Year", "ACADEMIC_YEAR");
+        initializeCodeValue("2036-2037 Academic Year", "ACADEMIC_YEAR");
 
         initializeCodeValue("First Year", "MAJOR_SECTION_YEAR");
         initializeCodeValue("Second Year", "MAJOR_SECTION_YEAR");

@@ -11,7 +11,7 @@ import org.uit.utimea.shared.repository.RoleRepository;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-@Order(0)
+@Order(1)
 public class RoleInitializr implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
