@@ -6,5 +6,7 @@ public record TimetableRequest(
         Long timetableDayId,
         Long timetablePeriodId,
         Long subjectId,
-        Long roomId
+        Long roomId,
+        Long teacherId,
+        Long subjectTypeId
 ) {}
