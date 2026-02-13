@@ -4,5 +4,6 @@ public record NotificationRequest(
         String action,
         Long teacherId,
         Long timetableInfoId,
-        Long majorSectionId
+        Long majorSectionId,
+        String readableText
 ) {}

@@ -8,6 +8,7 @@ public record NotificationResponse(
         Long teacherId,
         Long timetableInfoId,
         Long majorSectionId,
+        String readableText,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}
