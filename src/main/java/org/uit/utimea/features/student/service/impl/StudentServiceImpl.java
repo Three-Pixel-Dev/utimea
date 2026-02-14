@@ -111,8 +111,9 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
         
         // Add student filter (must have batch or majorSection)
         Specification<Profile> studentSpec = (root, query, cb) -> {
-            // Fetch User relationship to avoid lazy loading issues
-            root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+            if (!query.getResultType().equals(Long.class)) {
+                root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+            }
             Predicate hasBatch = cb.isNotNull(root.get("batch"));
             Predicate hasMajorSection = cb.isNotNull(root.get("majorSection"));
             return cb.or(hasBatch, hasMajorSection);
