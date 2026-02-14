@@ -108,8 +108,9 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
         
         // Add teacher filter (must have degree or department)
         Specification<Profile> teacherSpec = (root, query, cb) -> {
-            // Fetch User relationship to avoid lazy loading issues
-            root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+            if (query.getResultType() == null || !query.getResultType().equals(Long.class)) {
+                root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+            }
             Predicate hasDegree = cb.isNotNull(root.get("degree"));
             Predicate hasDepartment = cb.isNotNull(root.get("department"));
             return cb.or(hasDegree, hasDepartment);
