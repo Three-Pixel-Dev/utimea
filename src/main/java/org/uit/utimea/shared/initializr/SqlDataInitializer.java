@@ -8,6 +8,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.stereotype.Component;
+import org.uit.utimea.shared.repository.MajorSectionRepository;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -20,9 +21,13 @@ import java.sql.SQLException;
 public class SqlDataInitializer implements CommandLineRunner {
 
     private final DataSource dataSource;
-
+    private final MajorSectionRepository majorSectionRepo;
     @Override
     public void run(String... args) {
+        if (majorSectionRepo.count() > 0) {
+            log.info("Data already exists. Skipping init.sql execution.");
+            return;
+        }
         String sqlFileName = "init.sql";
         Resource resource = new ClassPathResource(sqlFileName);
 
