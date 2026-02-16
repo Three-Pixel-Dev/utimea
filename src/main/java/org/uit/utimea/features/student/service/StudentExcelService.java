@@ -390,6 +390,25 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
                         .build());
             }
 
+            // Validate phone number is required and contains only digits
+            if (student.getPhoneNumber() == null || student.getPhoneNumber().trim().isEmpty()) {
+                errors.add(ExcelValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .column("Phone Number")
+                        .message("Phone number is required")
+                        .build());
+            } else {
+                String phoneNumber = student.getPhoneNumber().trim();
+                if (!phoneNumber.matches("^[0-9]+$")) {
+                    errors.add(ExcelValidationError.builder()
+                            .rowNumber(rowNumber)
+                            .column("Phone Number")
+                            .message("Phone number must contain only digits")
+                            .invalidValue(phoneNumber)
+                            .build());
+                }
+            }
+
             if (student.getEmail() == null || student.getEmail().trim().isEmpty()) {
                 errors.add(ExcelValidationError.builder()
                         .rowNumber(rowNumber)
@@ -432,7 +451,14 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
                 }
             }
 
-            if (student.getBatchName() != null && !student.getBatchName().trim().isEmpty()) {
+            // Validate batch is required
+            if (student.getBatchName() == null || student.getBatchName().trim().isEmpty()) {
+                errors.add(ExcelValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .column("Batch Name")
+                        .message("Batch is required")
+                        .build());
+            } else {
                 Code batchCode = codeRepository.findByConstantValue("BATCH")
                         .orElse(null);
                 if (batchCode == null) {
@@ -456,7 +482,14 @@ public class StudentExcelService extends AbstractExcelService<StudentRequest, St
                 }
             }
 
-            if (student.getMajorSectionName() != null && !student.getMajorSectionName().trim().isEmpty()) {
+            // Validate major section is required
+            if (student.getMajorSectionName() == null || student.getMajorSectionName().trim().isEmpty()) {
+                errors.add(ExcelValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .column("Major Section Name")
+                        .message("Major Section is required")
+                        .build());
+            } else {
                 MajorSection majorSection = majorSectionRepository.findByName(student.getMajorSectionName())
                         .orElse(null);
                 if (majorSection == null) {
