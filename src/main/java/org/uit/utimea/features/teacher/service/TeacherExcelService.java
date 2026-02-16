@@ -248,6 +248,25 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
                         .build());
             }
 
+            // Validate phone number is required and contains only digits
+            if (teacher.getPhoneNumber() == null || teacher.getPhoneNumber().trim().isEmpty()) {
+                errors.add(ExcelValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .column("Phone Number")
+                        .message("Phone number is required")
+                        .build());
+            } else {
+                String phoneNumber = teacher.getPhoneNumber().trim();
+                if (!phoneNumber.matches("^[0-9]+$")) {
+                    errors.add(ExcelValidationError.builder()
+                            .rowNumber(rowNumber)
+                            .column("Phone Number")
+                            .message("Phone number must contain only digits")
+                            .invalidValue(phoneNumber)
+                            .build());
+                }
+            }
+
             if (teacher.getEmail() == null || teacher.getEmail().trim().isEmpty()) {
                 errors.add(ExcelValidationError.builder()
                         .rowNumber(rowNumber)
@@ -290,7 +309,14 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
                 }
             }
 
-            if (teacher.getDepartmentName() != null && !teacher.getDepartmentName().trim().isEmpty()) {
+            // Validate department is required
+            if (teacher.getDepartmentName() == null || teacher.getDepartmentName().trim().isEmpty()) {
+                errors.add(ExcelValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .column("Department Name")
+                        .message("Department is required")
+                        .build());
+            } else {
                 Code departmentCode = codeRepository.findByConstantValue("DEPARTMENT")
                         .orElse(null);
                 if (departmentCode == null) {
@@ -312,6 +338,15 @@ public class TeacherExcelService extends AbstractExcelService<TeacherRequest, Te
                                 .build());
                     }
                 }
+            }
+
+            // Validate degree is required
+            if (teacher.getDegree() == null || teacher.getDegree().trim().isEmpty()) {
+                errors.add(ExcelValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .column("Degree")
+                        .message("Degree is required")
+                        .build());
             }
         }
         

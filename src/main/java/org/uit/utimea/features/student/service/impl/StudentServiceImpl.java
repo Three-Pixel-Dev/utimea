@@ -39,6 +39,7 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
 
     @Override
     protected Profile mapRequestToEntity(StudentRequest request) {
+        validateStudentRequest(request);
         return studentMapper.toEntity(request);
     }
 
@@ -49,6 +50,7 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
 
     @Override
     protected void updateEntityFromRequest(Profile entity, StudentRequest request) {
+        validateStudentRequest(request);
         studentMapper.updateEntity(entity, request);
     }
 
@@ -182,5 +184,31 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
         }
 
         return map;
+    }
+
+    private void validateStudentRequest(StudentRequest request) {
+        // Validate phone number is required and contains only digits
+        if (request.phoneNumber() == null || request.phoneNumber().trim().isEmpty()) {
+            throw new IllegalArgumentException("Phone number is required");
+        }
+        String phoneNumber = request.phoneNumber().trim();
+        if (!phoneNumber.matches("^[0-9]+$")) {
+            throw new IllegalArgumentException("Phone number must contain only digits");
+        }
+
+        // Validate email is required
+        if (request.email() == null || request.email().trim().isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        // Validate batch is required
+        if (request.batchId() == null) {
+            throw new IllegalArgumentException("Batch is required");
+        }
+
+        // Validate major section is required
+        if (request.majorSectionId() == null) {
+            throw new IllegalArgumentException("Major Section is required");
+        }
     }
 }
