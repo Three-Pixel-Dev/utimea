@@ -76,4 +76,14 @@ public class TeacherController {
         );
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apiResponse);
     }
+
+    @PostMapping("/bulk-delete")
+    public ResponseEntity<ApiResponse> deleteMany(@RequestBody org.uit.utimea.shared.dto.request.BulkDeleteRequest request, HttpServletRequest httpServletRequest) {
+        teacherService.deleteMany(request.ids());
+        ApiResponse apiResponse = ApiResponseUtil.noContent(
+                "Teachers deleted successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apiResponse);
+    }
 }

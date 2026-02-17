@@ -62,6 +62,15 @@ public abstract class BaseServiceImpl<ENTITY, REQUEST, RESPONSE, FILTER> impleme
     }
 
     @Override
+    @Transactional
+    public void deleteMany(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        repository.deleteAllById(ids);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public PaginationDTO<RESPONSE> getAll(PageAndFilterDTO<FILTER> pageAndFilterDTO) {
         if (pageAndFilterDTO.getSortBy() != null && !pageAndFilterDTO.getSortBy().isEmpty()) {

@@ -76,4 +76,14 @@ public class SubjectController {
         );
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apiResponse);
     }
+
+    @PostMapping("/bulk-delete")
+    public ResponseEntity<ApiResponse> deleteMany(@RequestBody org.uit.utimea.shared.dto.request.BulkDeleteRequest request, HttpServletRequest httpServletRequest) {
+        subjectService.deleteMany(request.ids());
+        ApiResponse apiResponse = ApiResponseUtil.noContent(
+                "Subjects deleted successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apiResponse);
+    }
 }

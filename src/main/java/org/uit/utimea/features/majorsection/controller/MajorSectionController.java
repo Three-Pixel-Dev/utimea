@@ -76,4 +76,14 @@ public class MajorSectionController {
         );
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apiResponse);
     }
+
+    @PostMapping("/bulk-delete")
+    public ResponseEntity<ApiResponse> deleteMany(@RequestBody org.uit.utimea.shared.dto.request.BulkDeleteRequest request, HttpServletRequest httpServletRequest) {
+        majorSectionService.deleteMany(request.ids());
+        ApiResponse apiResponse = ApiResponseUtil.noContent(
+                "Major sections deleted successfully",
+                httpServletRequest
+        );
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apiResponse);
+    }
 }
