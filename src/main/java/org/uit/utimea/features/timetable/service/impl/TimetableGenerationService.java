@@ -735,19 +735,24 @@ public class TimetableGenerationService {
             CodeValue day = allDays.get(slot / 7);
             Long subjectId = result.getSubject().getDbId();
             Long teacherId = result.getAssignedTeacher().getId();
-
+            CodeValue period = allPeriods.get(slot % 7);
             // Validate: Check if same subject and teacher already exist on the same day
-            boolean duplicateExists = timetableDataRepo.existsBySubjectAndTeacherAndDay(
-                    subjectId, teacherId, day.getId());
-            
-            if (duplicateExists) {
-                Subject subject = subjectRepo.getReferenceById(subjectId);
-                Profile teacher = profileRepo.getReferenceById(teacherId);
-                throw new IllegalArgumentException(
-                        String.format("The same subject (%s) and teacher (%s) cannot be assigned to the same day (%s) more than once",
-                                subject.getCode(), teacher.getName(), day.getName()));
-            }
+//            boolean duplicateExists = timetableDataRepo.existsBySubjectAndTeacherAndDay(
+//                    subjectId, teacherId, day.getId());
+//
+//            if (duplicateExists) {
+//                Subject subject = subjectRepo.getReferenceById(subjectId);
+//                Profile teacher = profileRepo.getReferenceById(teacherId);
+//                throw new IllegalArgumentException(
+//                        String.format("The same subject (%s) and teacher (%s) cannot be assigned to the same day (%s) more than once",
+//                                subject.getCode(), teacher.getName(), day.getName()));
+//            }
+            boolean strictCollision = timetableDataRepo.existsByTeacherAndDayAndPeriod(
+                    teacherId, day.getId(), period.getId());
 
+            if (strictCollision) {
+                throw new IllegalArgumentException("Teacher Double Booking detected!");
+            }
             TimetableData data = new TimetableData();
             data.setTimetableDay(day);
             data.setTimetablePeriod(allPeriods.get(slot % 7));
