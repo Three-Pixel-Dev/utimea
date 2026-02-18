@@ -2,6 +2,7 @@ package org.uit.utimea.features.teacher.mapper;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.uit.utimea.shared.mapper.MasterDataMapper;
@@ -24,7 +25,8 @@ public class TeacherMapper {
     private final CodeValueRepository codeValueRepository;
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
-
+    private final PasswordEncoder passwordEncoder;
+    
     @Value("${user.default.password.teacher:uit@teacherPsw}")
     private String defaultTeacherPassword;
 
@@ -38,7 +40,7 @@ public class TeacherMapper {
                     
                     User newUser = User.builder()
                             .email(request.email())
-                            .password(defaultTeacherPassword)
+                            .password(passwordEncoder.encode(defaultTeacherPassword))
                             .role(teacherRole)
                             .build();
                     return userRepository.save(newUser);
