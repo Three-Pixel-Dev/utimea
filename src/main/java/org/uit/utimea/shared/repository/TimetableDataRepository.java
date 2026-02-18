@@ -51,4 +51,24 @@ public interface TimetableDataRepository extends BaseRepository<TimetableData> {
     boolean existsByDayAndPeriodAndRoom(@Param("dayId") Long dayId, 
                                        @Param("periodId") Long periodId, 
                                        @Param("roomId") Long roomId);
+    
+    // Check if same subject and teacher already exist on the same day (excluding specific timetable data IDs)
+    @Query("SELECT COUNT(td) > 0 FROM TimetableData td " +
+           "WHERE td.subject.id = :subjectId " +
+           "AND td.teacher.id = :teacherId " +
+           "AND td.timetableDay.id = :dayId " +
+           "AND td.id NOT IN :excludeIds")
+    boolean existsBySubjectAndTeacherAndDayExcluding(@Param("subjectId") Long subjectId,
+                                                     @Param("teacherId") Long teacherId,
+                                                     @Param("dayId") Long dayId,
+                                                     @Param("excludeIds") List<Long> excludeIds);
+    
+    // Check if same subject and teacher already exist on the same day
+    @Query("SELECT COUNT(td) > 0 FROM TimetableData td " +
+           "WHERE td.subject.id = :subjectId " +
+           "AND td.teacher.id = :teacherId " +
+           "AND td.timetableDay.id = :dayId")
+    boolean existsBySubjectAndTeacherAndDay(@Param("subjectId") Long subjectId,
+                                            @Param("teacherId") Long teacherId,
+                                            @Param("dayId") Long dayId);
 }

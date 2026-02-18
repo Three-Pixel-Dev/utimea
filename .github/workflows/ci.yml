@@ -29,11 +29,23 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
     
     env:
       SPRING_DATABASE_URL: jdbc:postgresql://localhost:5432/testdb
       SPRING_DATABASE_USERNAME: testuser
       SPRING_DATABASE_PASSWORD: testpass
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
     
     steps:
       - name: Checkout code
@@ -55,6 +67,8 @@ jobs:
           SPRING_DATABASE_URL: ${{ env.SPRING_DATABASE_URL }}
           SPRING_DATABASE_USERNAME: ${{ env.SPRING_DATABASE_USERNAME }}
           SPRING_DATABASE_PASSWORD: ${{ env.SPRING_DATABASE_PASSWORD }}
+          REDIS_HOST: ${{ env.REDIS_HOST }}
+          REDIS_PORT: ${{ env.REDIS_PORT }}
           SPRING_PROFILES_ACTIVE: ci
 
       - name: Upload test results

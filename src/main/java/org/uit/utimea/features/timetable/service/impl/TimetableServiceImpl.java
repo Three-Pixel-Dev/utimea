@@ -211,6 +211,16 @@ public class TimetableServiceImpl extends BaseServiceImpl<Timetable, TimetableRe
         CodeValue combinePeriod = codeValueRepository.findById(request.combinePeriodId())
                 .orElseThrow(() -> new RuntimeException("Period not found with id: " + request.combinePeriodId()));
 
+        // Check if same subject and teacher already exist on the same day (excluding the periods we're replacing)
+        boolean duplicateExists = timetableDataRepository.existsBySubjectAndTeacherAndDayExcluding(
+                subject.getId(), request.teacherId(), request.combineDayId(), excludeTimetableDataIds);
+        
+        if (duplicateExists) {
+            throw new IllegalArgumentException(
+                    String.format("The same subject (%s) and teacher (%s) cannot be assigned to the same day (%s) more than once",
+                            subject.getCode(), teacher.getName(), combineDay.getName()));
+        }
+
         // Create new timetable data for the combined class
         TimetableData combinedTimetableData = TimetableData.builder()
                 .timetableDay(combineDay)

@@ -68,13 +68,16 @@ public class TimetableMapper {
                 request.academicYearId()
         );
 
+        // Exclude current timetable data ID when checking for duplicates during update
+        Long currentTimetableDataId = entity.getTimetableData() != null ? entity.getTimetableData().getId() : null;
         TimetableData timetableData = findOrCreateTimetableData(
                 request.timetableDayId(),
                 request.timetablePeriodId(),
                 request.subjectId(),
                 request.roomId(),
                 request.teacherId(),
-                request.subjectTypeId()
+                request.subjectTypeId(),
+                currentTimetableDataId
         );
 
         entity.setTimetableInfo(timetableInfo);
@@ -117,6 +120,11 @@ public class TimetableMapper {
 
     private TimetableData findOrCreateTimetableData(Long timetableDayId, Long timetablePeriodId,
                                                      Long subjectId, Long roomId, Long teacherId, Long subjectTypeId) {
+        return findOrCreateTimetableData(timetableDayId, timetablePeriodId, subjectId, roomId, teacherId, subjectTypeId, null);
+    }
+
+    private TimetableData findOrCreateTimetableData(Long timetableDayId, Long timetablePeriodId,
+                                                     Long subjectId, Long roomId, Long teacherId, Long subjectTypeId, Long excludeTimetableDataId) {
         CodeValue timetableDay = codeValueRepository.findById(timetableDayId)
                 .orElseThrow(() -> new RuntimeException("CodeValue not found with id: " + timetableDayId));
 
@@ -131,6 +139,17 @@ public class TimetableMapper {
 
         Profile teacher = profileRepository.findById(teacherId)
                 .orElseThrow(() -> new RuntimeException("Teacher not found with id: " + teacherId));
+
+        // Validate: Check if same subject and teacher already exist on the same day
+        List<Long> excludeIds = excludeTimetableDataId != null ? List.of(excludeTimetableDataId) : List.of();
+        boolean duplicateExists = timetableDataRepository.existsBySubjectAndTeacherAndDayExcluding(
+                subjectId, teacherId, timetableDayId, excludeIds);
+        
+        if (duplicateExists) {
+            throw new IllegalArgumentException(
+                    String.format("The same subject (%s) and teacher (%s) cannot be assigned to the same day (%s) more than once",
+                            subject.getCode(), teacher.getName(), timetableDay.getName()));
+        }
 
         String subType;
         if (subjectTypeId != null) {
